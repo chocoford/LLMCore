@@ -8,6 +8,19 @@
 import Foundation
 import OpenAI
 
+public enum StreamChatResponse<R: ContentModel>: ContentModel {
+    case message(R)
+    case settlement(CreditsResult)
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let settlement = try? container.decode(CreditsResult.self) {
+            self = .settlement(settlement)
+        } else {
+            self = .message(try container.decode(R.self))
+        }
+    }
+}
 
 public struct ChatRequest: ContentModel {
     public var model: SupportedModel
@@ -29,17 +42,22 @@ public struct ChatRequest: ContentModel {
     }
 }
 
-public struct ChatMessage: ContentModel {
+public struct ChatMessage: ContentModel, Identifiable {
+    public var id: String
     public var role: Role
     public var content: String?
     
     public var images: [NanoBananaMessageExtra.Choice.Message.Image]? = nil
     
+    public var usage: CreditsResult?
+    
     public init(
+        id: String = UUID().uuidString,
         role: Role,
         content: String? = nil,
         images: [NanoBananaMessageExtra.Choice.Message.Image]? = nil
     ) {
+        self.id = id
         self.role = role
         self.content = content
         self.images = images

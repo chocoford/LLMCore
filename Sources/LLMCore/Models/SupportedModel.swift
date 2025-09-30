@@ -36,10 +36,10 @@ public enum SupportedModel: ContentModel {
     
     public var rawValue: String {
         switch self {
-            case .gpt4o: return "gpt-4o"
-            case .gpt4oMini: return "gpt-4o-mini"
-            case .gpt4oLatest: return "gpt-4o-latest"
-            case .gpt35Turbo: return "gpt-3.5-turbo"
+            case .gpt4o: return "openai/gpt-4o"
+            case .gpt4oMini: return "openai/gpt-4o-mini"
+            case .gpt4oLatest: return "openai/gpt-4o-latest"
+            case .gpt35Turbo: return "openai/gpt-3.5-turbo"
             case .claudeSonnet: return "claude-3.5-sonnet"
             case .claudeHaiku: return "claude-3.5-haiku"
             case .mistral7b: return "mistral-7b-instruct"
@@ -57,10 +57,10 @@ public enum SupportedModel: ContentModel {
     
     public init(rawValue: String) {
         switch rawValue {
-            case "gpt-4o": self = .gpt4o
-            case "gpt-4o-mini": self = .gpt4oMini
-            case "gpt-4o-latest": self = .gpt4oLatest
-            case "gpt-3.5-turbo": self = .gpt35Turbo
+            case "openai/gpt-4o": self = .gpt4o
+            case "openai/gpt-4o-mini": self = .gpt4oMini
+            case "openai/gpt-4o-latest": self = .gpt4oLatest
+            case "openai/gpt-3.5-turbo": self = .gpt35Turbo
             case "claude-3.5-sonnet": self = .claudeSonnet
             case "claude-3.5-haiku": self = .claudeHaiku
             case "mistral-7b-instruct": self = .mistral7b

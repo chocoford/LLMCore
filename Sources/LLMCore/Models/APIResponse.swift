@@ -6,15 +6,28 @@
 //
 
 import Foundation
+import OpenAI
+
+public struct CreditsResult: ContentModel {
+    public var consumed: Double
+    public var remains: Double
+    
+    public init(consumed: Double, remains: Double) {
+        self.consumed = consumed
+        self.remains = remains
+    }
+}
 
 public struct APIResponse<T: LLMCore.ContentModel>: ContentModel {
     public var data: T?
     public var usage: Usage?
+    public var credits: CreditsResult?
     public var error: APIError?
 
-    public init(data: T, usage: Usage?) {
+    public init(data: T, usage: Usage?, credits: CreditsResult?) {
         self.data = data
         self.usage = usage
+        self.credits = credits
         self.error = nil
     }
 
