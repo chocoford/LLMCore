@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import CryptoKit
 
 public struct SignUploadRequest: ContentModel {
     public var method: String
