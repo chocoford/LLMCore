@@ -84,4 +84,77 @@ public enum SupportedModel: ContentModel {
         var container = encoder.singleValueContainer()
         try container.encode(self.rawValue)
     }
+    
+    public var supportsStreaming: Bool {
+        switch self {
+            case .nanoBananaFree, .nanoBanana:
+                return false
+            default:
+                return true
+        }
+    }
+}
+
+// MARK: - UI Helper Extensions
+public extension SupportedModel {
+    /// 显示名称
+    var displayName: String {
+        switch self {
+        case .gpt4o: return "GPT-4o"
+        case .gpt4oMini: return "GPT-4o Mini"
+        case .gpt4oLatest: return "GPT-4o Latest"
+        case .gpt35Turbo: return "GPT-3.5 Turbo"
+        case .claudeSonnet: return "Claude 3.5 Sonnet"
+        case .claudeHaiku: return "Claude 3.5 Haiku"
+        case .mistral7b: return "Mistral 7B"
+        case .mixtral8x7b: return "Mixtral 8x7B"
+        case .gemini15Pro: return "Gemini 1.5 Pro"
+        case .gemini15Flash: return "Gemini 1.5 Flash"
+        case .nanoBananaFree: return "Nano Banana (Free)"
+        case .nanoBanana: return "Nano Banana"
+        case .other(let value): return value
+        }
+    }
+    
+    /// 模型提供商
+    var provider: String {
+        switch self {
+        case .gpt4o, .gpt4oMini, .gpt4oLatest, .gpt35Turbo:
+            return "OpenAI"
+        case .claudeSonnet, .claudeHaiku:
+            return "Anthropic"
+        case .mistral7b, .mixtral8x7b:
+            return "Mistral"
+        case .gemini15Pro, .gemini15Flash, .nanoBananaFree, .nanoBanana:
+            return "Google"
+        case .other:
+            return "Other"
+        }
+    }
+    
+    /// 是否为图像模型
+    var isImageModel: Bool {
+        switch self {
+        case .nanoBananaFree, .nanoBanana:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// 获取所有聊天模型（排除图像模型）
+    static var allChatModels: [SupportedModel] {
+        return [
+            .gpt4oMini, .gpt4o, .gpt4oLatest, .gpt35Turbo,
+            .claudeHaiku, .claudeSonnet,
+            .gemini15Flash, .gemini15Pro,
+            .mistral7b, .mixtral8x7b,
+            .nanoBanana, .nanoBananaFree
+        ]
+    }
+    
+    /// 按提供商分组的聊天模型
+    static var chatModelsByProvider: [String: [SupportedModel]] {
+        return Dictionary(grouping: allChatModels) { $0.provider }
+    }
 }

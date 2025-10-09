@@ -14,7 +14,7 @@ public struct NanoBananaMessageExtra: Decodable {
         public var message: Message
         
         public struct Message: Decodable {
-            public var images: [Image]
+            public var images: [Image]?
             
             public struct Image: ContentModel {
                 public var type: ImageType
