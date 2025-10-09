@@ -8,16 +8,16 @@
 import Foundation
 
 public struct IAPAuthRequest: ContentModel {
-    public var originalTransactionID: String
+    public var jws: String
     public var bundleID: String
     public var ascAppID: Int64?
     
     public init(
-        originalTransactionID: String,
+        jws: String,
         bundleID: String,
         ascAppID: Int64?
     ) {
-        self.originalTransactionID = originalTransactionID
+        self.jws = jws
         self.bundleID = bundleID
         self.ascAppID = ascAppID
     }

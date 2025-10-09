@@ -19,7 +19,7 @@ extension Encodable {
             return String(data: data, encoding: .utf8) // fallback 原始 JSON
         }
         
-        var truncated = truncateValues(in: jsonObject, maxLength: maxValueLength)
+        let truncated = truncateValues(in: jsonObject, maxLength: maxValueLength)
         
         guard let formattedData = try? JSONSerialization.data(withJSONObject: truncated, options: [.prettyPrinted, .sortedKeys]),
               let formattedString = String(data: formattedData, encoding: .utf8) else {
