@@ -126,12 +126,14 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         id: String = UUID().uuidString,
         role: Role,
         content: String? = nil,
-        files: [File] = []
+        files: [File] = [],
+        usage: CreditsResult? = nil
     ) {
         self.id = id
         self.role = role
         self.content = content
         self.files = files
+        self.usage = usage
     }
 
     public enum Role: String, ContentModel {
