@@ -7,6 +7,35 @@
 
 import Foundation
 
+protocol AnonymousableAuthRequest: ContentModel {
+    var deviceToken: String { get }
+}
+
+public struct AnonAuthRequest: ContentModel {
+    public enum Platform: String, ContentModel {
+        case apple
+        case web
+    }
+    
+    public var platform: Platform
+    public var bundleID: String
+    public var anonID: String
+    public var deviceToken: String
+    
+    public init(
+        platform: Platform,
+        bundleID: String,
+        anonID: String,
+        deviceToken: String
+    ) {
+        self.platform = platform
+        self.bundleID = bundleID
+        self.anonID = anonID
+        self.deviceToken = deviceToken
+    }
+}
+
+
 public struct IAPAuthRequest: ContentModel {
     public var jws: String
     public var bundleID: String
