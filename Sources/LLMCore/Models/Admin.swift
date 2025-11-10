@@ -42,14 +42,16 @@ public struct CreditResponse: ContentModel {
     public let periodicBalance: Double
     public let periodicStart: Date?
     public let periodicExpiration: Date?
+    public let freeDailyCredits: Double
 
-    public init(id: UUID, userIdentityId: UUID, permanentBalance: Double, periodicBalance: Double, periodicStart: Date?, periodicExpiration: Date?) {
+    public init(id: UUID, userIdentityId: UUID, permanentBalance: Double, periodicBalance: Double, periodicStart: Date?, periodicExpiration: Date?, freeDailyCredits: Double) {
         self.id = id
         self.userIdentityId = userIdentityId
         self.permanentBalance = permanentBalance
         self.periodicBalance = periodicBalance
         self.periodicStart = periodicStart
         self.periodicExpiration = periodicExpiration
+        self.freeDailyCredits = freeDailyCredits
     }
 }
 
