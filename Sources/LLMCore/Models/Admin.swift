@@ -160,16 +160,16 @@ public struct AppConfigResponse: ContentModel {
     public let bundleId: String
     public let ascAppId: Int64?
     public let allowAnon: Bool
-    public let allowFreeTier: Bool
+    public let initialFreeCredits: Double
     public let freeDailyCredits: Double
     public let freeTierRateLimit: Int
 
-    public init(id: UUID, bundleId: String, ascAppId: Int64?, allowAnon: Bool, allowFreeTier: Bool, freeDailyCredits: Double, freeTierRateLimit: Int) {
+    public init(id: UUID, bundleId: String, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
         self.id = id
         self.bundleId = bundleId
         self.ascAppId = ascAppId
         self.allowAnon = allowAnon
-        self.allowFreeTier = allowFreeTier
+        self.initialFreeCredits = initialFreeCredits
         self.freeDailyCredits = freeDailyCredits
         self.freeTierRateLimit = freeTierRateLimit
     }
@@ -215,15 +215,15 @@ public struct AppConfigCreateRequest: ContentModel {
     public let bundleId: String
     public let ascAppId: Int64?
     public let allowAnon: Bool
-    public let allowFreeTier: Bool
+    public let initialFreeCredits: Double
     public let freeDailyCredits: Double
     public let freeTierRateLimit: Int
 
-    public init(bundleId: String, ascAppId: Int64?, allowAnon: Bool, allowFreeTier: Bool, freeDailyCredits: Double, freeTierRateLimit: Int) {
+    public init(bundleId: String, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
         self.bundleId = bundleId
         self.ascAppId = ascAppId
         self.allowAnon = allowAnon
-        self.allowFreeTier = allowFreeTier
+        self.initialFreeCredits = initialFreeCredits
         self.freeDailyCredits = freeDailyCredits
         self.freeTierRateLimit = freeTierRateLimit
     }
@@ -233,15 +233,15 @@ public struct AppConfigUpdateRequest: ContentModel {
     public let bundleId: String
     public let ascAppId: Int64?
     public let allowAnon: Bool
-    public let allowFreeTier: Bool
+    public let initialFreeCredits: Double
     public let freeDailyCredits: Double
     public let freeTierRateLimit: Int
 
-    public init(bundleId: String, ascAppId: Int64?, allowAnon: Bool, allowFreeTier: Bool, freeDailyCredits: Double, freeTierRateLimit: Int) {
+    public init(bundleId: String, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
         self.bundleId = bundleId
         self.ascAppId = ascAppId
         self.allowAnon = allowAnon
-        self.allowFreeTier = allowFreeTier
+        self.initialFreeCredits = initialFreeCredits
         self.freeDailyCredits = freeDailyCredits
         self.freeTierRateLimit = freeTierRateLimit
     }
