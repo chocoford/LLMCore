@@ -32,6 +32,9 @@ public enum SupportedModel: ContentModel {
     case nanoBananaFree
     case nanoBanana
     
+    // --- Non-OpenRouter Models ---
+    case minimaxM2
+    
     case other(String)
     
     public var rawValue: String {
@@ -48,6 +51,8 @@ public enum SupportedModel: ContentModel {
             case .gemini15Flash: return "gemini-1.5-flash"
             case .nanoBananaFree: return "google/gemini-2.5-flash-image-preview:free"
             case .nanoBanana: return "google/gemini-2.5-flash-image-preview"
+                
+            case .minimaxM2: return "minimax-m2"
             case .other(let value): return value
         }
     }
@@ -98,35 +103,40 @@ public extension SupportedModel {
     /// 显示名称
     var displayName: String {
         switch self {
-        case .gpt4o: return "GPT-4o"
-        case .gpt4oMini: return "GPT-4o Mini"
-        case .gpt4oLatest: return "GPT-4o Latest"
-        case .gpt35Turbo: return "GPT-3.5 Turbo"
-        case .claudeSonnet: return "Claude 3.5 Sonnet"
-        case .claudeHaiku: return "Claude 3.5 Haiku"
-        case .mistral7b: return "Mistral 7B"
-        case .mixtral8x7b: return "Mixtral 8x7B"
-        case .gemini15Pro: return "Gemini 1.5 Pro"
-        case .gemini15Flash: return "Gemini 1.5 Flash"
-        case .nanoBananaFree: return "Nano Banana (Free)"
-        case .nanoBanana: return "Nano Banana"
-        case .other(let value): return value
+            case .gpt4o: return "GPT-4o"
+            case .gpt4oMini: return "GPT-4o Mini"
+            case .gpt4oLatest: return "GPT-4o Latest"
+            case .gpt35Turbo: return "GPT-3.5 Turbo"
+            case .claudeSonnet: return "Claude 3.5 Sonnet"
+            case .claudeHaiku: return "Claude 3.5 Haiku"
+            case .mistral7b: return "Mistral 7B"
+            case .mixtral8x7b: return "Mixtral 8x7B"
+            case .gemini15Pro: return "Gemini 1.5 Pro"
+            case .gemini15Flash: return "Gemini 1.5 Flash"
+            case .nanoBananaFree: return "Nano Banana (Free)"
+            case .nanoBanana: return "Nano Banana"
+            
+            case .minimaxM2: return "Minimax-M2"
+            
+            case .other(let value): return value
         }
     }
     
     /// 模型提供商
     var provider: String {
         switch self {
-        case .gpt4o, .gpt4oMini, .gpt4oLatest, .gpt35Turbo:
-            return "OpenAI"
-        case .claudeSonnet, .claudeHaiku:
-            return "Anthropic"
-        case .mistral7b, .mixtral8x7b:
-            return "Mistral"
-        case .gemini15Pro, .gemini15Flash, .nanoBananaFree, .nanoBanana:
-            return "Google"
-        case .other:
-            return "Other"
+            case .gpt4o, .gpt4oMini, .gpt4oLatest, .gpt35Turbo:
+                return "OpenAI"
+            case .claudeSonnet, .claudeHaiku:
+                return "Anthropic"
+            case .mistral7b, .mixtral8x7b:
+                return "Mistral"
+            case .gemini15Pro, .gemini15Flash, .nanoBananaFree, .nanoBanana:
+                return "Google"
+            case .minimaxM2:
+                return "Minimax"
+            case .other:
+                return "Other"
         }
     }
     
