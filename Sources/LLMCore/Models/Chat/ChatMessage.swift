@@ -1,46 +1,12 @@
 //
-//  ChatModels.swift
-//  LLMServer
+//  File.swift
+//  LLMCore
 //
-//  Created by Chocoford on 9/3/25.
+//  Created by Chocoford on 11/12/25.
 //
 
 import Foundation
 import OpenAI
-
-public enum StreamChatResponse<R: ContentModel>: ContentModel {
-    case message(R)
-    case settlement(CreditsResult)
-    
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let settlement = try? container.decode(CreditsResult.self) {
-            self = .settlement(settlement)
-        } else {
-            self = .message(try container.decode(R.self))
-        }
-    }
-}
-
-public struct ChatRequest: ContentModel {
-    public var model: SupportedModel
-    public var messages: [ChatMessageContent]
-    
-    public init(model: SupportedModel, messages: [ChatMessageContent]) {
-        self.model = model
-        self.messages = messages
-    }
-    
-    public init(model: SupportedModel, systemPrompt: String?, userPrompt: String) {
-        self.model = model
-        var msgs: [ChatMessageContent] = []
-        if let systemPrompt {
-            msgs.append(ChatMessageContent(role: .system, content: systemPrompt))
-        }
-        msgs.append(ChatMessageContent(role: .user, content: userPrompt))
-        self.messages = msgs
-    }
-}
 
 public enum ChatMessage: ContentModel, Identifiable {
     case loading(UUID = UUID())
@@ -110,7 +76,6 @@ public enum ChatMessage: ContentModel, Identifiable {
             default:
                 return
         }
-        
     }
 }
 
@@ -276,55 +241,5 @@ extension [ChatMessageContent.File] {
         Generated files:
             \(self.map { "- \($0.description)" }.joined(separator: "\n    "))
         """
-    }
-}
-
-public struct ChatChoice: ContentModel {
-    public var index: Int
-    public var message: ChatMessage
-    
-    public init(index: Int, message: ChatMessage) {
-        self.index = index
-        self.message = message
-    }
-}
-
-public struct ChatResponse: ContentModel {
-    public var model: String
-    public var choices: [ChatChoice]
-    
-    public init(model: String, choices: [ChatChoice]) {
-        self.model = model
-        self.choices = choices
-    }
-}
-
-public struct Usage: ContentModel {
-    public var promptTokens: Int
-    public var completionTokens: Int
-    public var totalTokens: Int
-
-    enum CodingKeys: String, CodingKey {
-        case promptTokens = "prompt_tokens"
-        case completionTokens = "completion_tokens"
-        case totalTokens = "total_tokens"
-    }
-    
-    public init(promptTokens: Int, completionTokens: Int, totalTokens: Int) {
-        self.promptTokens = promptTokens
-        self.completionTokens = completionTokens
-        self.totalTokens = totalTokens
-    }
-}
-
-public struct AskRequest: ContentModel {
-    public var systemPrompt: String?
-    public var userPrompt: String
-    public var model: SupportedModel? // 可选，默认为 gpt4oMini
-    
-    public init(systemPrompt: String? = nil, userPrompt: String, model: SupportedModel? = nil) {
-        self.systemPrompt = systemPrompt
-        self.userPrompt = userPrompt
-        self.model = model
     }
 }
