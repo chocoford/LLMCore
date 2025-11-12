@@ -87,8 +87,6 @@ public enum SupportedModel: ContentModel {
     
     public var supportsStreaming: Bool {
         switch self {
-            case .nanoBananaFree, .nanoBanana:
-                return false
             default:
                 return true
         }
