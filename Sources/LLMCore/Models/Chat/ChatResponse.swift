@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OpenAI
 
 public struct ChatResponse: ContentModel {
     public var model: String
@@ -16,7 +17,6 @@ public struct ChatResponse: ContentModel {
         self.choices = choices
     }
 }
-
 
 public enum StreamChatResponse: ContentModel {
     case message(MessagResult)
