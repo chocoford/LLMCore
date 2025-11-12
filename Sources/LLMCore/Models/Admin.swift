@@ -262,3 +262,31 @@ public struct AppProductConfigCreateRequest: ContentModel {
         self.appConfigId = appConfigId
     }
 }
+
+// MARK: - Model Pricing
+
+public struct ModelPricingResponse: ContentModel {
+    public let modelId: String
+    public let prompt: Double?
+    public let completion: Double?
+    public let request: Double?
+    public let image: Double?
+    public let webSearch: Double?
+    public let internalReasoning: Double?
+    public let inputCacheRead: Double?
+    public let audio: Double?
+    public let inputCacheWrite: Double?
+
+    public init(modelId: String, prompt: Double?, completion: Double?, request: Double?, image: Double?, webSearch: Double?, internalReasoning: Double?, inputCacheRead: Double?, audio: Double?, inputCacheWrite: Double?) {
+        self.modelId = modelId
+        self.prompt = prompt
+        self.completion = completion
+        self.request = request
+        self.image = image
+        self.webSearch = webSearch
+        self.internalReasoning = internalReasoning
+        self.inputCacheRead = inputCacheRead
+        self.audio = audio
+        self.inputCacheWrite = inputCacheWrite
+    }
+}
