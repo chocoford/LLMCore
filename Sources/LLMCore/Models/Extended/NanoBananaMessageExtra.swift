@@ -7,21 +7,21 @@
 
 import Foundation
 
-public struct NanoBananaMessageExtra: Decodable {
+public struct NanoBananaMessageExtra: Decodable, Sendable {
     public var choices: [Choice]
     
-    public struct Choice: Decodable {
+    public struct Choice: Decodable, Sendable {
         public var message: Message
         
-        public struct Message: Decodable {
+        public struct Message: Decodable, Sendable {
             public var images: [Image]?
             
-            public struct Image: ContentModel {
+            public struct Image: ContentModel, Sendable {
                 public var type: ImageType
                 public var imageURL: ImageURL
                 public var index: Int
                 
-                public enum ImageType: String, ContentModel {
+                public enum ImageType: String, ContentModel, Sendable {
                     case imageURL = "image_url"
                 }
                 
@@ -31,7 +31,7 @@ public struct NanoBananaMessageExtra: Decodable {
                     case index
                 }
                 
-                public struct ImageURL: ContentModel {
+                public struct ImageURL: ContentModel, Sendable {
                     public var url: String
                 }
             }
