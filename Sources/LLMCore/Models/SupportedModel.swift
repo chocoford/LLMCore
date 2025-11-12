@@ -52,7 +52,7 @@ public enum SupportedModel: ContentModel {
             case .nanoBananaFree: return "google/gemini-2.5-flash-image-preview:free"
             case .nanoBanana: return "google/gemini-2.5-flash-image-preview"
                 
-            case .minimaxM2: return "minimax-m2"
+            case .minimaxM2: return "minimax/minimax-m2"
             case .other(let value): return value
         }
     }
