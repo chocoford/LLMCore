@@ -101,6 +101,16 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.usage = usage
     }
 
+//    public init(from decoder: any Decoder) throws {
+//        let container = try decoder.container(keyedBy: CodingKeys.self)
+//        // OpenAI无论是stream还是non-stream，这里都没有id
+//        self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+//        self.role = try container.decode(ChatMessageContent.Role.self, forKey: .role)
+//        self.content = try container.decodeIfPresent(String.self, forKey: .content)
+//        self.files = try container.decodeIfPresent([ChatMessageContent.File].self, forKey: .files)
+//        self.usage = try container.decodeIfPresent(CreditsResult.self, forKey: .usage)
+//    }
+    
     public enum Role: String, ContentModel {
         case system
         case user

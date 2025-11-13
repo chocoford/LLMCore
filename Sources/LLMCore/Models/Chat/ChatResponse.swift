@@ -8,16 +8,7 @@
 import Foundation
 import OpenAI
 
-public struct ChatResponse: ContentModel {
-    public var model: String
-    public var choices: [ChatChoice]
-    
-    public init(model: String, choices: [ChatChoice]) {
-        self.model = model
-        self.choices = choices
-    }
-}
-
+// ChatStreamResult
 public enum StreamChatResponse: ContentModel {
     case message(MessagResult)
     case settlement(CreditsResult)

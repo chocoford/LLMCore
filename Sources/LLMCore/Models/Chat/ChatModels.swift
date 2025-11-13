@@ -8,15 +8,7 @@
 import Foundation
 import OpenAI
 
-public struct ChatChoice: ContentModel {
-    public var index: Int
-    public var message: ChatMessage
-    
-    public init(index: Int, message: ChatMessage) {
-        self.index = index
-        self.message = message
-    }
-}
+
 
 public struct StreamChatChoiceDelta: ContentModel {
     public var index: Int
