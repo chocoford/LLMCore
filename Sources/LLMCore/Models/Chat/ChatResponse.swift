@@ -10,7 +10,7 @@ import OpenAI
 
 // ChatStreamResult
 public enum StreamChatResponse: ContentModel {
-    case message(MessagResult)
+    case message(ChatMessage)
     case settlement(CreditsResult)
     
     public init(from decoder: Decoder) throws {
@@ -18,14 +18,8 @@ public enum StreamChatResponse: ContentModel {
         if let settlement = try? container.decode(CreditsResult.self) {
             self = .settlement(settlement)
         } else {
-            self = .message(try container.decode(MessagResult.self))
+            self = .message(try container.decode(ChatMessage.self))
         }
-    }
-    
-    public struct MessagResult: ContentModel {
-        public let id: String
-        public var model: String
-        public var choices: [StreamChatChoiceDelta]
     }
 }
 
