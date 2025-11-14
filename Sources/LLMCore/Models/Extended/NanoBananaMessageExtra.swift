@@ -8,7 +8,7 @@
 import Foundation
 import OpenAI
 
-protocol ChatCompletionUsage {
+public protocol ChatCompletionUsage {
     /// Number of tokens in the generated completion.
     var completionTokens: Int { get }
     /// Number of tokens in the prompt.
