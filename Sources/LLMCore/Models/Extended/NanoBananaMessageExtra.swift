@@ -41,6 +41,7 @@ public struct NanoBananaMessageExtra: Decodable, Sendable {
 
 public struct NanoBananaStreamExtra: Decodable, Sendable {
     public var choices: [Choice]
+    public var usage: Usage? // missing audio_tokens
     
     public struct Choice: Decodable, Sendable {
         public var delta: Message
@@ -67,6 +68,33 @@ public struct NanoBananaStreamExtra: Decodable, Sendable {
                     public var url: String
                 }
             }
+        }
+    }
+    
+    public struct Usage: Decodable, Sendable {
+        /// Number of tokens in the generated completion.
+        public let completionTokens: Int
+        /// Number of tokens in the prompt.
+        public let promptTokens: Int
+        /// Total number of tokens used in the request (prompt + completion).
+        public let totalTokens: Int
+        /// Breakdown of tokens used in the prompt.
+        public let promptTokensDetails: PromptTokensDetails?
+        
+        public struct PromptTokensDetails: Codable, Equatable, Sendable {
+            /// Cached tokens present in the prompt.
+            public let cachedTokens: Int
+            
+            enum CodingKeys: String, CodingKey {
+                case cachedTokens = "cached_tokens"
+            }
+        }
+        
+        enum CodingKeys: String, CodingKey {
+            case completionTokens = "completion_tokens"
+            case promptTokens = "prompt_tokens"
+            case totalTokens = "total_tokens"
+            case promptTokensDetails = "prompt_tokens_details"
         }
     }
 }

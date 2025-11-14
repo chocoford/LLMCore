@@ -45,6 +45,24 @@ public enum ChatMessage: ContentModel, Identifiable {
             }
         }
     }
+    public var files: [ChatMessageContent.File]? {
+        get {
+            if case .content(let content) = self {
+                return content.files
+            }
+            return nil
+        }
+        
+        set {
+            switch self {
+                case .content(var content):
+                    content.files = newValue
+                    self = .content(content)
+                default:
+                    return
+            }
+        }
+    }
     public var usage: CreditsResult? {
         get {
             switch self {
@@ -101,15 +119,14 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.usage = usage
     }
 
-//    public init(from decoder: any Decoder) throws {
-//        let container = try decoder.container(keyedBy: CodingKeys.self)
-//        // OpenAI无论是stream还是non-stream，这里都没有id
-//        self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
-//        self.role = try container.decode(ChatMessageContent.Role.self, forKey: .role)
-//        self.content = try container.decodeIfPresent(String.self, forKey: .content)
-//        self.files = try container.decodeIfPresent([ChatMessageContent.File].self, forKey: .files)
-//        self.usage = try container.decodeIfPresent(CreditsResult.self, forKey: .usage)
-//    }
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id) ?? UUID().uuidString
+        self.role = try container.decodeIfPresent(ChatMessageContent.Role.self, forKey: .role) ?? .assistant
+        self.content = try container.decodeIfPresent(String.self, forKey: .content)
+        self.files = try container.decodeIfPresent([ChatMessageContent.File].self, forKey: .files)
+        self.usage = try container.decodeIfPresent(CreditsResult.self, forKey: .usage)
+    }
     
     public enum Role: String, ContentModel {
         case system
