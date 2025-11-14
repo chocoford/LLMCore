@@ -6,6 +6,16 @@
 //
 
 import Foundation
+import OpenAI
+
+protocol ChatCompletionUsage {
+    /// Number of tokens in the generated completion.
+    var completionTokens: Int { get }
+    /// Number of tokens in the prompt.
+    var promptTokens: Int { get }
+    
+    var totalTokens: Int { get }
+}
 
 public struct NanoBananaMessageExtra: Decodable, Sendable {
     public var choices: [Choice]
@@ -71,7 +81,7 @@ public struct NanoBananaStreamExtra: Decodable, Sendable {
         }
     }
     
-    public struct Usage: Decodable, Sendable {
+    public struct Usage: ChatCompletionUsage, Decodable, Sendable {
         /// Number of tokens in the generated completion.
         public let completionTokens: Int
         /// Number of tokens in the prompt.
@@ -98,3 +108,7 @@ public struct NanoBananaStreamExtra: Decodable, Sendable {
         }
     }
 }
+
+
+
+extension ChatResult.CompletionUsage: ChatCompletionUsage { }
