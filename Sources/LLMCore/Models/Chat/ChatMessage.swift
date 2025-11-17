@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  ChatMessage.swift
 //  LLMCore
 //
 //  Created by Chocoford on 11/12/25.
@@ -8,103 +8,15 @@
 import Foundation
 import OpenAI
 
-public enum ChatMessage: ContentModel, Identifiable {
-    case loading(UUID = UUID())
-    case content(ChatMessageContent)
-    case error(UUID, String)
-    
-    public var id: String {
-        switch self {
-            case .loading(let id):
-                return id.uuidString
-            case .content(let content):
-                return content.id
-            case .error(let id, _):
-                return id.uuidString
-        }
-    }
-    
-    public var content: String? {
-        get {
-            switch self {
-                case .content(let content):
-                    content.content
-                case .error(_, let errorMessage):
-                    errorMessage
-                default:
-                    nil
-            }
-        }
-        set {
-            switch self {
-                case .content(var content):
-                    content.content = newValue
-                    self = .content(content)
-                default:
-                    return
-            }
-        }
-    }
-    public var files: [ChatMessageContent.File]? {
-        get {
-            if case .content(let content) = self {
-                return content.files
-            }
-            return nil
-        }
-        
-        set {
-            switch self {
-                case .content(var content):
-                    content.files = newValue
-                    self = .content(content)
-                default:
-                    return
-            }
-        }
-    }
-    public var usage: CreditsResult? {
-        get {
-            switch self {
-                case .content(let content):
-                    content.usage
-                default:
-                    nil
-            }
-        }
-        set {
-            switch self {
-                case .content(var content):
-                    content.usage = newValue
-                    self = .content(content)
-                default:
-                    return
-            }
-        }
-    }
-    
-    public init(from decoder: any Decoder) throws {
-        self = .content(try ChatMessageContent(from: decoder))
-    }
-    
-    public func encode(to encoder: any Encoder) throws {
-        switch self {
-            case .content(let content):
-                try content.encode(to: encoder)
-            default:
-                return
-        }
-    }
-}
-
+/// Core message content structure for LLM communication
 public struct ChatMessageContent: ContentModel, Identifiable {
     public var id: String
     public var role: Role
     public var content: String?
     public var files: [File]?
-    
+
     public var usage: CreditsResult?
-    
+
     public init(
         id: String = UUID().uuidString,
         role: Role,
@@ -127,21 +39,21 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.files = try container.decodeIfPresent([ChatMessageContent.File].self, forKey: .files)
         self.usage = try container.decodeIfPresent(CreditsResult.self, forKey: .usage)
     }
-    
+
     public enum Role: String, ContentModel {
         case system
         case user
         case assistant
-        
+
         public var asOpenAIRole: ChatQuery.ChatCompletionMessageParam.Role {
             .init(rawValue: self.rawValue) ?? .user
         }
     }
-    
+
     public enum File: ContentModel, Hashable, CustomStringConvertible {
         case base64EncodedImage(String)
         case image(URL)
-        
+
         public var description: String {
             switch self {
                 case .base64EncodedImage(let string):
@@ -150,7 +62,7 @@ public struct ChatMessageContent: ContentModel, Identifiable {
                     "Image: \(url.absoluteString)"
             }
         }
-        
+
         public var asUserMessageContentPart: ChatQuery.ChatCompletionMessageParam.UserMessageParam.Content.ContentPart? {
             switch self {
                 case .image(let url):
@@ -162,45 +74,14 @@ public struct ChatMessageContent: ContentModel, Identifiable {
     }
 }
 
-extension [ChatMessage] {
-    public var contentMessages: [ChatMessageContent] {
-        get {
-            self.compactMap {
-                switch $0 {
-                    case .content(let content):
-                        content
-                    default:
-                        nil
-                }
-            }
-        }
-        set {
-            var j = newValue.startIndex
-            for i in self.indices {
-                if j >= newValue.endIndex {
-                    break
-                }
-                if case .content = self[i] {
-                    self[i] = .content(newValue[j])
-                    j += 1
-                }
-            }
-        }
-    }
-    
-    public var asOpenAIMessages: [ChatQuery.ChatCompletionMessageParam] {
-        contentMessages.asOpenAIMessages
-    }
-}
-
 extension [ChatMessageContent] {
     public var asOpenAIMessages: [ChatQuery.ChatCompletionMessageParam] {
         var results: [ChatQuery.ChatCompletionMessageParam] = []
-        
+
         var filesNeedToBring: [ChatMessageContent.File] = []
-        
+
         for message in self {
-            
+
             let messageParam: ChatQuery.ChatCompletionMessageParam
             switch message.role {
                 case .user:
@@ -242,7 +123,7 @@ extension [ChatMessageContent] {
                     if let files = message.files {
                         filesNeedToBring = files
                     }
-                    
+
                     messageParam = .assistant(
                         .init(
                             content: .contentParts([
@@ -254,10 +135,10 @@ extension [ChatMessageContent] {
                         )
                     )
             }
-            
+
             results.append(messageParam)
         }
-        
+
         return results
     }
 }
