@@ -80,7 +80,7 @@ public struct CreditAddRequest: ContentModel {
 
 public struct CreditAddResponse: ContentModel {
     public var balance: Double
-    
+
     public init(balance: Double) {
         self.balance = balance
     }
