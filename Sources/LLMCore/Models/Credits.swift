@@ -8,9 +8,13 @@
 import Foundation
 
 // MARK: - Transaction Metadata Protocol
-
+public enum CreditDeductionSource: String, ContentModel {
+    case free
+    case periodic
+    case permanent
+}
 public protocol CreditTransactionMetadata: ContentModel {
-    var deductionSources: [String: Double]? { get }
+    var deductionSources: [CreditDeductionSource: Double] { get }
 }
 
 // MARK: - Credits Info
@@ -74,17 +78,19 @@ public struct CreditsTransaction<Metadata: ContentModel>: ContentModel, Identifi
     public var id: String
     public var type: CreditsTransactionType
     public var amount: Double              // Positive for additions, negative for usage
-    public var balance: Double             // Balance after transaction
-    public var description: String
+    public var balance: Double             // Balance after transaction (calculated, not from DB)
+    public var transactionID: String?      // Apple transaction ID for purchases/subscriptions
+    public var reason: String?             // Human-readable reason
     public var createdAt: Date
-    public var metadata: Metadata? // Additional info (model used, tokens, etc.)
+    public var metadata: Metadata?         // Additional info from client-side source
 
     public init(
         id: String,
         type: CreditsTransactionType,
         amount: Double,
         balance: Double,
-        description: String,
+        transactionID: String? = nil,
+        reason: String? = nil,
         createdAt: Date,
         metadata: Metadata? = nil
     ) {
@@ -92,7 +98,8 @@ public struct CreditsTransaction<Metadata: ContentModel>: ContentModel, Identifi
         self.type = type
         self.amount = amount
         self.balance = balance
-        self.description = description
+        self.transactionID = transactionID
+        self.reason = reason
         self.createdAt = createdAt
         self.metadata = metadata
     }
