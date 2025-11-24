@@ -51,7 +51,7 @@ public struct SubscriptionInfo: ContentModel {
 
 // MARK: - Transaction History
 
-public struct TransactionHistory<Metadata: CreditTransactionMetadata>: ContentModel {
+public struct TransactionHistory<Metadata: ContentModel>: ContentModel {
     public var transactions: [CreditsTransaction<Metadata>]
     public var totalCount: Int
     public var page: Int
@@ -70,7 +70,7 @@ public struct TransactionHistory<Metadata: CreditTransactionMetadata>: ContentMo
     }
 }
 
-public struct CreditsTransaction<Metadata: CreditTransactionMetadata>: ContentModel, Identifiable {
+public struct CreditsTransaction<Metadata: ContentModel>: ContentModel, Identifiable {
     public var id: String
     public var type: CreditsTransactionType
     public var amount: Double              // Positive for additions, negative for usage
