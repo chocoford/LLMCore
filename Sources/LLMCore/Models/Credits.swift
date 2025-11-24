@@ -7,8 +7,13 @@
 
 import Foundation
 
-// MARK: - Credits Info
+// MARK: - Transaction Metadata Protocol
 
+public protocol CreditTransactionMetadata: ContentModel {
+    var deductionSources: [String: Double]? { get }
+}
+
+// MARK: - Credits Info
 public struct CreditsInfo: ContentModel {
     public var balance: Double              // Total available credits
     public var subscription: SubscriptionInfo?
@@ -46,14 +51,14 @@ public struct SubscriptionInfo: ContentModel {
 
 // MARK: - Transaction History
 
-public struct TransactionHistory: ContentModel {
-    public var transactions: [CreditsTransaction]
+public struct TransactionHistory<Metadata: CreditTransactionMetadata>: ContentModel {
+    public var transactions: [CreditsTransaction<Metadata>]
     public var totalCount: Int
     public var page: Int
     public var pageSize: Int
 
     public init(
-        transactions: [CreditsTransaction],
+        transactions: [CreditsTransaction<Metadata>],
         totalCount: Int,
         page: Int,
         pageSize: Int
@@ -65,14 +70,14 @@ public struct TransactionHistory: ContentModel {
     }
 }
 
-public struct CreditsTransaction: ContentModel, Identifiable {
+public struct CreditsTransaction<Metadata: CreditTransactionMetadata>: ContentModel, Identifiable {
     public var id: String
     public var type: CreditsTransactionType
     public var amount: Double              // Positive for additions, negative for usage
     public var balance: Double             // Balance after transaction
     public var description: String
     public var createdAt: Date
-    public var metadata: [String: String]? // Additional info (model used, tokens, etc.)
+    public var metadata: Metadata? // Additional info (model used, tokens, etc.)
 
     public init(
         id: String,
@@ -81,7 +86,7 @@ public struct CreditsTransaction: ContentModel, Identifiable {
         balance: Double,
         description: String,
         createdAt: Date,
-        metadata: [String: String]? = nil
+        metadata: Metadata? = nil
     ) {
         self.id = id
         self.type = type
