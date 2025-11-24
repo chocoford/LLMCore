@@ -13,8 +13,11 @@ public enum CreditDeductionSource: String, ContentModel {
     case periodic
     case permanent
 }
+
 public protocol CreditTransactionMetadata: ContentModel {
-    var deductionSources: [CreditDeductionSource: Double] { get }
+    var model: String { get }                                      // Server-side: Model used
+    var usage: Usage { get }                                  // Server-side: Token usage
+    var deductionSources: [CreditDeductionSource: Double] { get }  // Server-side: Balance pools used
 }
 
 // MARK: - Credits Info
