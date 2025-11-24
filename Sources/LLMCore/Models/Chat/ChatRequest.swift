@@ -7,18 +7,27 @@
 
 import Foundation
 
-public struct ChatRequest: ContentModel {
+public protocol ChatRequestMetadata: ContentModel {}
+
+/// Empty metadata type for requests without custom metadata
+public struct EmptyMetadata: ChatRequestMetadata {
+    public init() {}
+}
+
+public struct ChatRequest<Metadata: ChatRequestMetadata>: ContentModel {
+    /// Protocol for chat request metadata
+    /// Conform to this protocol to pass custom metadata with chat requests
     public var model: SupportedModel
     public var messages: [ChatMessageContent]
-    public var metadata: [String: String]?
+    public var metadata: Metadata?
 
-    public init(model: SupportedModel, messages: [ChatMessageContent], metadata: [String: String]? = nil) {
+    public init(model: SupportedModel, messages: [ChatMessageContent], metadata: Metadata? = nil) {
         self.model = model
         self.messages = messages
         self.metadata = metadata
     }
 
-    public init(model: SupportedModel, systemPrompt: String?, userPrompt: String, metadata: [String: String]? = nil) {
+    public init(model: SupportedModel, systemPrompt: String?, userPrompt: String, metadata: Metadata? = nil) {
         self.model = model
         var msgs: [ChatMessageContent] = []
         if let systemPrompt {
