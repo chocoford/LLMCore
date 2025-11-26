@@ -6,6 +6,7 @@
 //
 
 import Foundation
+@preconcurrency import AnyCodable
 
 // MARK: - Transaction Metadata Protocol
 public enum CreditDeductionSource: String, ContentModel {
@@ -58,14 +59,24 @@ public struct SubscriptionInfo: ContentModel {
 
 // MARK: - Transaction History
 
-public struct TransactionHistory<Metadata: ContentModel>: ContentModel {
-    public var transactions: [CreditsTransaction<Metadata>]
+public protocol CreditsTransactionMetaData: ContentModel {
+    associatedtype Context: ContentModel
+    
+    var id: String { get }
+    var date: Date { get }
+    
+    var userInfo: [String : AnyCodable] { get }
+    var context: Context { get }
+}
+
+public struct TransactionHistory: ContentModel {
+    public var transactions: [CreditsTransaction]
     public var totalCount: Int
     public var page: Int
     public var pageSize: Int
 
     public init(
-        transactions: [CreditsTransaction<Metadata>],
+        transactions: [CreditsTransaction],
         totalCount: Int,
         page: Int,
         pageSize: Int
@@ -77,41 +88,82 @@ public struct TransactionHistory<Metadata: ContentModel>: ContentModel {
     }
 }
 
-public struct CreditsTransaction<Metadata: ContentModel>: ContentModel, Identifiable {
+public struct CreditsTransaction: ContentModel, Identifiable {
     public var id: String
     public var type: CreditsTransactionType
     public var amount: Double              // Positive for additions, negative for usage
-    public var balance: Double             // Balance after transaction (calculated, not from DB)
     public var transactionID: String?      // Apple transaction ID for purchases/subscriptions
     public var reason: String?             // Human-readable reason
     public var createdAt: Date
-    public var metadata: Metadata?         // Additional info from client-side source
+    public var metadata: [String : AnyCodable]?         // Additional info from client-side source
 
     public init(
         id: String,
         type: CreditsTransactionType,
         amount: Double,
-        balance: Double,
         transactionID: String? = nil,
         reason: String? = nil,
         createdAt: Date,
-        metadata: Metadata? = nil
+        metadata: [String : AnyCodable]?
     ) {
         self.id = id
         self.type = type
         self.amount = amount
-        self.balance = balance
         self.transactionID = transactionID
         self.reason = reason
         self.createdAt = createdAt
         self.metadata = metadata
     }
+    
+    
+    // convenient functions for metadata
+    public func getMetadataValue<T: Codable>(key: String) -> T? {
+        guard let codable = self.metadata?[key] else {
+            return nil
+        }
+        do {
+            let data = try JSONEncoder().encode(codable)
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            print(error)
+            return nil
+        }
+    }
+
+    public struct DeductionSources: Codable {
+        var permanent: Double?
+        var periodic: Double?
+        var free: Double?
+    }
+    public func deductionSources() -> DeductionSources? {
+        getMetadataValue(key: "deductionSources")
+    }
+    public func usage() -> Usage? {
+        getMetadataValue(key: "usage")
+    }
 }
 
 public enum CreditsTransactionType: String, ContentModel {
-    case purchase           // Bought credits
-    case subscription       // Monthly subscription quota
-    case usage             // Used for API calls
-    case refund            // Refunded credits
-    case bonus             // Promotional credits
+    /// 用户直接购买（一次性购买）
+    case purchase
+
+    /// 用户使用或消耗 credits（聊天、绘图等）
+    case consume
+
+    /// 推广活动奖励 / 手动发放奖励
+    case promotion
+
+    /// 苹果或系统退款
+    case refund
+
+    // MARK: 订阅相关
+    /// 订阅
+    case subscribe
+    ///  重新订阅
+    case resubscribe
+    /// 订阅续期产生的新周期 credit 增加
+    case renewal
+    /// 订阅周期结束，周期性 credit 过期清零
+    case expiration
 }
+

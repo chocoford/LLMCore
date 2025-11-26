@@ -62,15 +62,26 @@ public struct CreditTransactionResponse: ContentModel {
     public let type: String
     public let transactionId: String?
     public let reason: String?
+    public let metadata: String?  // JSON string
     public let createdAt: Date?
 
-    public init(id: UUID, userIdentityId: UUID, amount: Double, type: String, transactionId: String?, reason: String?, createdAt: Date?) {
+    public init(
+        id: UUID,
+        userIdentityId: UUID,
+        amount: Double,
+        type: String,
+        transactionId: String?,
+        reason: String?,
+        metadata: String?,
+        createdAt: Date?
+    ) {
         self.id = id
         self.userIdentityId = userIdentityId
         self.amount = amount
         self.type = type
         self.transactionId = transactionId
         self.reason = reason
+        self.metadata = metadata
         self.createdAt = createdAt
     }
 }

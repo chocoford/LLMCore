@@ -23,6 +23,7 @@ let package = Package(
         // OPEN AI
         .package(url: "https://github.com/MacPaw/OpenAI.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
+        .package(url: "https://github.com/Flight-School/AnyCodable", from: "0.6.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -32,6 +33,7 @@ let package = Package(
             dependencies: [
                 .product(name: "OpenAI", package: "OpenAI"),
                 .product(name: "Logging", package: "swift-log"),
+                .product(name: "AnyCodable", package: "AnyCodable"),
             ],
             swiftSettings: [
                 .enableExperimentalFeature("StrictConcurrency"),
