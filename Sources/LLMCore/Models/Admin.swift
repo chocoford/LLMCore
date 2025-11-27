@@ -301,3 +301,37 @@ public struct ModelPricingResponse: ContentModel {
         self.inputCacheWrite = inputCacheWrite
     }
 }
+
+// MARK: - Logs
+
+public struct LogEntryResponse: ContentModel {
+    public let id: UUID
+    public let level: String
+    public let message: String
+    public let metadata: [String: AnyCodable]?
+    public let requestId: String?
+    public let createdAt: Date
+
+    public init(id: UUID, level: String, message: String, metadata: [String: AnyCodable]?, requestId: String?, createdAt: Date) {
+        self.id = id
+        self.level = level
+        self.message = message
+        self.metadata = metadata
+        self.requestId = requestId
+        self.createdAt = createdAt
+    }
+}
+
+public struct LogHistoryResponse: ContentModel {
+    public var logs: [LogEntryResponse]
+    public var totalCount: Int
+    public var page: Int
+    public var pageSize: Int
+
+    public init(logs: [LogEntryResponse], totalCount: Int, page: Int, pageSize: Int) {
+        self.logs = logs
+        self.totalCount = totalCount
+        self.page = page
+        self.pageSize = pageSize
+    }
+}
