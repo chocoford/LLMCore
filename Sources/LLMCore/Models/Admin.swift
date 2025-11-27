@@ -143,30 +143,6 @@ public struct SubscriptionEventResponse: ContentModel {
     }
 }
 
-public struct AnonUserResponse: ContentModel {
-    public let id: UUID
-    public let deviceId: String
-
-    public init(id: UUID, deviceId: String) {
-        self.id = id
-        self.deviceId = deviceId
-    }
-}
-
-public struct AnonUsageResponse: ContentModel {
-    public let id: UUID
-    public let anonUserId: UUID
-    public let date: Date
-    public let usedCredits: Double
-
-    public init(id: UUID, anonUserId: UUID, date: Date, usedCredits: Double) {
-        self.id = id
-        self.anonUserId = anonUserId
-        self.date = date
-        self.usedCredits = usedCredits
-    }
-}
-
 public struct AppConfigResponse: ContentModel {
     public let id: UUID
     public let bundleId: String

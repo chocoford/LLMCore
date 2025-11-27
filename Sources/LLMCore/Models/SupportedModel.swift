@@ -14,15 +14,15 @@ public enum SupportedModel: ContentModel {
     case gpt4oMini
     case gpt4oLatest
     case gpt35Turbo
-
+    
     // --- Anthropic 系 ---
     case claudeSonnet
     case claudeHaiku
-
+    
     // --- Mistral 系 ---
     case mistral7b
     case mixtral8x7b
-
+    
     // --- Google Gemini 系 ---
     case gemini15Pro
     case gemini15Flash
@@ -31,6 +31,7 @@ public enum SupportedModel: ContentModel {
     // --- Image ---
     case nanoBananaFree
     case nanoBanana
+    case nanoBananaPro
     
     // --- Non-OpenRouter Models ---
     case minimaxM2
@@ -51,6 +52,7 @@ public enum SupportedModel: ContentModel {
             case .gemini15Flash: return "gemini-1.5-flash"
             case .nanoBananaFree: return "google/gemini-2.5-flash-image-preview:free"
             case .nanoBanana: return "google/gemini-2.5-flash-image-preview"
+            case .nanoBananaPro: return "google/gemini-3-pro-image-preview"
                 
             case .minimaxM2: return "minimax/minimax-m2"
             case .other(let value): return value
@@ -74,6 +76,7 @@ public enum SupportedModel: ContentModel {
             case "gemini-1.5-flash": self = .gemini15Flash
             case "google/gemini-2.5-flash-image-preview:free": self = .nanoBananaFree
             case "google/gemini-2.5-flash-image-preview": self = .nanoBanana
+            case "google/gemini-3-pro-image-preview": self = .nanoBananaPro
             default: self = .other(rawValue)
         }
     }
@@ -115,9 +118,10 @@ public extension SupportedModel {
             case .gemini15Flash: return "Gemini 1.5 Flash"
             case .nanoBananaFree: return "Nano Banana (Free)"
             case .nanoBanana: return "Nano Banana"
-            
+            case .nanoBananaPro: return "Nano Banana Pro"
+                
             case .minimaxM2: return "Minimax-M2"
-            
+                
             case .other(let value): return value
         }
     }
@@ -131,7 +135,7 @@ public extension SupportedModel {
                 return "Anthropic"
             case .mistral7b, .mixtral8x7b:
                 return "Mistral"
-            case .gemini15Pro, .gemini15Flash, .nanoBananaFree, .nanoBanana:
+            case .gemini15Pro, .gemini15Flash, .nanoBananaFree, .nanoBanana, .nanoBananaPro:
                 return "Google"
             case .minimaxM2:
                 return "Minimax"
@@ -143,21 +147,21 @@ public extension SupportedModel {
     /// 是否为图像模型
     var isImageModel: Bool {
         switch self {
-        case .nanoBananaFree, .nanoBanana:
-            return true
-        default:
-            return false
+            case .nanoBananaFree, .nanoBanana, .nanoBananaPro:
+                return true
+            default:
+                return false
         }
     }
     
-    /// 获取所有聊天模型（排除图像模型）
+    
     static var allChatModels: [SupportedModel] {
         return [
             .gpt4oMini, .gpt4o, .gpt4oLatest, .gpt35Turbo,
             .claudeHaiku, .claudeSonnet,
             .gemini15Flash, .gemini15Pro,
             .mistral7b, .mixtral8x7b,
-            .nanoBanana, .nanoBananaFree
+            .nanoBanana, .nanoBananaFree, .nanoBananaPro
         ]
     }
     
