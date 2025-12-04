@@ -33,7 +33,7 @@ public struct ChatMessageContent: ContentModel, Identifiable {
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decode(String.self, forKey: .id) ?? UUID().uuidString
+        self.id = try container.decode(String.self, forKey: .id)
         self.role = try container.decodeIfPresent(ChatMessageContent.Role.self, forKey: .role) ?? .assistant
         self.content = try container.decodeIfPresent(String.self, forKey: .content)
         self.files = try container.decodeIfPresent([ChatMessageContent.File].self, forKey: .files)

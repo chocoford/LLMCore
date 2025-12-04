@@ -61,13 +61,14 @@ public final class AgentExecutor: Sendable {
 
     /// Execute agent based on configuration
     /// Returns a stream of chat messages (always streaming, even if model doesn't support it)
+    @MainActor
     public func execute<Metadata: Codable & Equatable & Sendable>(
         conversationID: String,
         agentConfig: AgentConfig,
         contextMessages: [ChatMessageContent],
         model: SupportedModel,
         metadata: Metadata = EmptyMetadata(),
-        onStep: @escaping @Sendable (AgentStep) async -> Void
+        onStep: @escaping (AgentStep) async -> Void
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         let tools = await toolRegistry.get(agentConfig.tools)
         let canStream = model.supportsStreaming
@@ -314,6 +315,7 @@ public final class AgentExecutor: Sendable {
 
     /// Request a thought step from LLM
     /// Returns a stream of ChatMessageContent chunks (accumulating content over time)
+    @MainActor
     private func requestThought<Metadata: Codable & Equatable & Sendable>(
         model: SupportedModel,
         context: [ChatMessageContent],
@@ -321,7 +323,7 @@ public final class AgentExecutor: Sendable {
         thoughtNumber: Int,
         config: AgentConfig,
         metadata: Metadata?,
-        onStep: @escaping @Sendable (AgentStep) async -> Void
+        onStep: @escaping  (AgentStep) async -> Void
     ) async throws -> AsyncThrowingStream<ChatMessageContent, Error> {
         if stream {
             // Streaming mode - return a stream that yields accumulated chunks
@@ -461,10 +463,11 @@ public final class AgentExecutor: Sendable {
     }
 
     /// Helper to emit observation step
+    @MainActor
     private func emitObservation(
         stepNumber: Int,
         content: String,
-        onStep: @Sendable (AgentStep) async -> Void
+        onStep:  (AgentStep) async -> Void
     ) async {
         let observationStep = AgentStep(
             stepNumber: stepNumber,
