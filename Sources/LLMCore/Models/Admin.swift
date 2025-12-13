@@ -8,6 +8,13 @@
 import Foundation
 @preconcurrency import AnyCodable
 
+// MARK: - Enums
+
+public enum AppPlatform: String, Codable, Sendable {
+    case app
+    case web
+}
+
 // MARK: - Admin Response Models
 
 public struct UserResponse: ContentModel {
@@ -146,15 +153,17 @@ public struct SubscriptionEventResponse: ContentModel {
 public struct AppConfigResponse: ContentModel {
     public let id: UUID
     public let bundleId: String
+    public let platform: AppPlatform
     public let ascAppId: Int64?
     public let allowAnon: Bool
     public let initialFreeCredits: Double
     public let freeDailyCredits: Double
     public let freeTierRateLimit: Int
 
-    public init(id: UUID, bundleId: String, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
+    public init(id: UUID, bundleId: String, platform: AppPlatform, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
         self.id = id
         self.bundleId = bundleId
+        self.platform = platform
         self.ascAppId = ascAppId
         self.allowAnon = allowAnon
         self.initialFreeCredits = initialFreeCredits
@@ -201,14 +210,16 @@ public struct PromotionCreateRequest: ContentModel {
 
 public struct AppConfigCreateRequest: ContentModel {
     public let bundleId: String
+    public let platform: AppPlatform
     public let ascAppId: Int64?
     public let allowAnon: Bool
     public let initialFreeCredits: Double
     public let freeDailyCredits: Double
     public let freeTierRateLimit: Int
 
-    public init(bundleId: String, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
+    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
         self.bundleId = bundleId
+        self.platform = platform
         self.ascAppId = ascAppId
         self.allowAnon = allowAnon
         self.initialFreeCredits = initialFreeCredits
@@ -219,14 +230,16 @@ public struct AppConfigCreateRequest: ContentModel {
 
 public struct AppConfigUpdateRequest: ContentModel {
     public let bundleId: String
+    public let platform: AppPlatform
     public let ascAppId: Int64?
     public let allowAnon: Bool
     public let initialFreeCredits: Double
     public let freeDailyCredits: Double
     public let freeTierRateLimit: Int
 
-    public init(bundleId: String, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
+    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
         self.bundleId = bundleId
+        self.platform = platform
         self.ascAppId = ascAppId
         self.allowAnon = allowAnon
         self.initialFreeCredits = initialFreeCredits
