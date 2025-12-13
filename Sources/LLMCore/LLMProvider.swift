@@ -10,10 +10,12 @@ import Foundation
 public struct ChatRequestInternalMetadata: ContentModel {
     public var conversationID: String
     public var agentStep: Int
-    
-    public init(conversationID: String, agentStep: Int) {
+    public var source: LLMCallSource?
+
+    public init(conversationID: String, agentStep: Int, source: LLMCallSource? = nil) {
         self.conversationID = conversationID
         self.agentStep = agentStep
+        self.source = source
     }
 }
 
