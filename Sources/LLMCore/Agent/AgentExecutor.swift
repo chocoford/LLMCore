@@ -68,6 +68,7 @@ public final class AgentExecutor: Sendable {
         contextMessages: [ChatMessageContent],
         model: SupportedModel,
         metadata: Metadata = EmptyMetadata(),
+        invocationContext: (any ChatInvocationContext)? = nil,
         onStep: @escaping (AgentStep) async -> Void
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         let tools = await toolRegistry.get(agentConfig.tools)
@@ -228,7 +229,10 @@ public final class AgentExecutor: Sendable {
                                         }
 
                                         do {
-                                            let observation = try await tool.execute(toolCall.input)
+                                            let observation = try await tool.execute(
+                                                toolCall.input,
+                                                context: invocationContext
+                                            )
                                             self.logger.debug("Tool execution result: \(observation.prefix(100))...")
 
                                             // Emit observation (action needs observation)
@@ -281,9 +285,6 @@ public final class AgentExecutor: Sendable {
                                             content: "\(stepPrefix) \(textContent)"
                                         ))
 
-                                    case .thought:
-                                        // Thought should not appear as nextStep
-                                        throw AgentError.invalidToolCall("Thought cannot be a next step")
                                 }
                                 // Continue to next thought
                                 continue

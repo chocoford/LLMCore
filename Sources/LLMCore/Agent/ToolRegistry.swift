@@ -59,10 +59,14 @@ public actor ToolRegistry {
             return ""
         }
 
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
         let toolsDesc = selectedTools.map { tool in
-            """
+            let parametersJSON = (try? encoder.encode(tool.parameters))
+                .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+            return """
             - \(tool.name): \(tool.description)
-              Parameters: \(tool.parameters.properties.keys.joined(separator: ", "))
+              Parameters: \(parametersJSON)
             """
         }.joined(separator: "\n")
 
@@ -74,6 +78,8 @@ public actor ToolRegistry {
         To use a tool, respond with:
         Action: <tool_name>
         Input: <json_input>
+
+        Tips: The Input value must be valid JSON.
         """
     }
 }

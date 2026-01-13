@@ -8,7 +8,7 @@
 import Foundation
 
 /// Protocol for tools that agents can use
-public protocol Tool: Sendable {
+public protocol Tool: Sendable {    
     /// Unique name of the tool
     var name: String { get }
 
@@ -20,8 +20,15 @@ public protocol Tool: Sendable {
 
     /// Execute the tool with given input
     /// - Parameter input: JSON string containing the tool input
+    /// - Parameter context: Optional invocation context for tool-specific data
     /// - Returns: Tool execution result as string
-    func execute(_ input: String) async throws -> String
+    func execute(_ input: String, context: (any ChatInvocationContext)?) async throws -> String
+}
+
+public extension Tool {
+    func execute(_ input: String) async throws -> String {
+        try await execute(input, context: nil)
+    }
 }
 
 /// Tool parameter schema
@@ -55,8 +62,19 @@ public struct ParameterProperty: Codable, Sendable {
 }
 
 /// Tool execution error
-public enum ToolError: Error {
+public enum ToolError: LocalizedError {
     case invalidInput(String)
     case executionFailed(String)
     case toolNotFound(String)
+    
+    public var errorDescription: String? {
+        switch self {
+        case .invalidInput(let message):
+            return "Invalid input: \(message)"
+        case .executionFailed(let message):
+            return "Execution failed: \(message)"
+        case .toolNotFound(let name):
+            return "Tool not found: \(name)"
+        }
+    }
 }
