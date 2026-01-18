@@ -69,16 +69,16 @@ extension Array where Element == AgentStepType {
 public struct AgentConfig: Codable, Sendable, Equatable {
     /// Allowed step types for this agent
     /// Empty set means direct response (traditional chat)
-    public var allowedSteps: Set<AgentStepType>
+    public internal(set) var allowedSteps: Set<AgentStepType>
 
     /// Available tools for the agent
-    public var tools: [String]
+    public internal(set) var tools: [String]
 
-    /// System message for the agent
-    public var systemMessage: String?
+    /// System prompt for the agent
+    public internal(set) var systemPrompt: String?
 
     /// Maximum number of thought steps allowed
-    public var maxThoughts: Int
+    public internal(set) var maxThoughts: Int
 
     /// Temperature for LLM sampling
     public var temperature: Double
@@ -86,15 +86,43 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     public init(
         allowedSteps: Set<AgentStepType> = [],
         tools: [String] = [],
-        systemMessage: String? = nil,
+        systemPrompt: String? = nil,
         maxThoughts: Int = 10,
         temperature: Double = 0.7
     ) {
         self.allowedSteps = allowedSteps
         self.tools = tools
-        self.systemMessage = systemMessage
+        self.systemPrompt = systemPrompt
         self.maxThoughts = maxThoughts
         self.temperature = temperature
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case allowedSteps
+        case tools
+        case systemPrompt
+        case systemMessage
+        case maxThoughts
+        case temperature
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.allowedSteps = try container.decodeIfPresent(Set<AgentStepType>.self, forKey: .allowedSteps) ?? []
+        self.tools = try container.decodeIfPresent([String].self, forKey: .tools) ?? []
+        self.systemPrompt = try container.decodeIfPresent(String.self, forKey: .systemPrompt)
+            ?? container.decodeIfPresent(String.self, forKey: .systemMessage)
+        self.maxThoughts = try container.decodeIfPresent(Int.self, forKey: .maxThoughts) ?? 10
+        self.temperature = try container.decodeIfPresent(Double.self, forKey: .temperature) ?? 0.7
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(allowedSteps, forKey: .allowedSteps)
+        try container.encode(tools, forKey: .tools)
+        try container.encodeIfPresent(systemPrompt, forKey: .systemPrompt)
+        try container.encode(maxThoughts, forKey: .maxThoughts)
+        try container.encode(temperature, forKey: .temperature)
     }
 
     /// Traditional chat configuration (no steps, direct response)
@@ -103,42 +131,60 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     }
 
     /// ReAct agent configuration (thought → action with automatic observation)
-    public static func react(tools: [String], maxThoughts: Int = 10) -> AgentConfig {
+    public static func react(
+        tools: [String],
+        maxThoughts: Int = 10,
+        systemPrompt: String? = nil
+    ) -> AgentConfig {
         AgentConfig(
             allowedSteps: [.action],
             tools: tools,
+            systemPrompt: systemPrompt,
             maxThoughts: maxThoughts
         )
     }
 
     /// Plan-and-Execute agent configuration
-    public static func planAndExecute(tools: [String], maxThoughts: Int = 10) -> AgentConfig {
+    public static func planAndExecute(
+        tools: [String],
+        maxThoughts: Int = 10,
+        systemPrompt: String? = nil
+    ) -> AgentConfig {
         AgentConfig(
             allowedSteps: [.plan, .action],
             tools: tools,
+            systemPrompt: systemPrompt,
             maxThoughts: maxThoughts
         )
     }
 
     /// Reflexion agent configuration (with self-reflection)
-    public static func reflexion(tools: [String], maxThoughts: Int = 10) -> AgentConfig {
+    public static func reflexion(
+        tools: [String],
+        maxThoughts: Int = 10,
+        systemPrompt: String? = nil
+    ) -> AgentConfig {
         AgentConfig(
             allowedSteps: [.action, .reflection],
             tools: tools,
+            systemPrompt: systemPrompt,
             maxThoughts: maxThoughts
         )
     }
 
     /// Generate strategy instructions based on allowed steps
     /// - Returns: Combined instruction text from all allowed steps
-    public func generateStrategyInstructions() -> String {
+    private func generateStrategyInstructions() -> String {
         var steps = allowedSteps
         if tools.isEmpty {
             steps.remove(.action)
         }
-        
+
         return """
+        # Strategy Instructions
+
         Think step by step about what you need to do next.
+        You should reach the final answer by thinking the problem through, and when you do, always frame your thoughts as "the user asked me to xxx."
 
         IMPORTANT: Your thought should ONLY contain your reasoning process.
         DO NOT output any action keywords (Action:, Plan:, Reflection:, Final Answer:) in your thought.
@@ -162,12 +208,25 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         CRITICAL: You MUST use the EXACT English keywords shown above.
         DO NOT translate these keywords to any other language. The system parser only recognizes these English keywords.
         """
-        
+
 //        IMPORTANT - Final Answer Format:
 //        When you have enough information to answer the user's question, you MUST respond with:
 //        Final Answer: <your_answer>
-//        
+//
 //        This is the ONLY way to complete the task. Do not just provide an answer without this format.
 //
+    }
+
+    /// Combined prompt for the agent (system prompt + strategy instructions).
+    public var prompt: String {
+        var parts: [String] = []
+        if let systemPrompt, !systemPrompt.isEmpty {
+            parts.append(systemPrompt)
+        }
+        let strategyInstructions = generateStrategyInstructions()
+        if !strategyInstructions.isEmpty {
+            parts.append(strategyInstructions)
+        }
+        return parts.joined(separator: "\n\n")
     }
 }
