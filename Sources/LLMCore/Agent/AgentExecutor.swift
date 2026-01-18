@@ -33,7 +33,6 @@ public enum AgentError: Error, LocalizedError {
 
 /// Parsed response from thought step
 private enum ThoughtResponse {
-    case finalAnswer(String)
     case nextStep(AgentStepType, StepContent)
     case unknown(String)  // Continue without specific action
 }
@@ -53,6 +52,7 @@ public final class AgentExecutor: Sendable {
     private let logger = Logger(label: "AgentExecutor")
     private let llmProvider: LLMProvider
     private let toolRegistry: ToolRegistry
+    private let finalAnswerToolName = "final_answer"
 
     public init(llmProvider: LLMProvider, toolRegistry: ToolRegistry) {
         self.llmProvider = llmProvider
@@ -128,49 +128,19 @@ public final class AgentExecutor: Sendable {
                             context: context,
                             stream: canStream,
                             thoughtNumber: thoughtCount,
-                            config: agentConfig,
                             metadata: requestMetadata,
                             onStep: onStep
                         )
 
-                        // Consume the stream and check if it's a final answer
+                        // Consume the stream and capture the final accumulated thought
                         var thoughtMessage: ChatMessageContent?
-                        var isFinalAnswer = false
 
                         for try await chunk in thoughtStream {
                             thoughtMessage = chunk
-
-                            // Check if this chunk contains a final answer
-                            if let content = chunk.content, !isFinalAnswer {
-                                if self.parseFinalAnswer(from: content) != nil {
-                                    isFinalAnswer = true
-                                }
-                            }
-
-                            // If it's a final answer, yield the chunk with "Final Answer:" prefix removed
-                            if isFinalAnswer {
-                                if let answer = self.parseFinalAnswer(from: chunk.content ?? "") {
-                                    // Create a new chunk with only the answer content
-                                    let answerChunk = ChatMessageContent(
-                                        id: chunk.id,
-                                        role: chunk.role,
-                                        content: answer,
-                                        files: chunk.files ?? [],
-                                        usage: chunk.usage
-                                    )
-                                    continuation.yield(.content(answerChunk))
-                                }
-                            }
                         }
 
                         guard let finalMessage = thoughtMessage else {
                             throw AgentError.toolExecutionFailed("No response from LLM")
-                        }
-
-                        // If it was a final answer, stream is done, finish
-                        if isFinalAnswer {
-                            continuation.finish()
-                            return
                         }
 
                         // Accumulate files and usage from this thought
@@ -185,25 +155,10 @@ public final class AgentExecutor: Sendable {
 
                         // Step 2: Parse the thought response
                         self.logger.debug("Thought content (first 200 chars): \(thoughtContent.prefix(200))")
-                        let response = self.parseThoughtResponse(thoughtContent, config: agentConfig)
+                        let response = self.parseThoughtResponse(thoughtContent)
 
                         // Step 3: Handle the response with switch (only if not already handled as final answer)
                         switch response {
-                            case .finalAnswer(let answer):
-                                // This case is actually already handled above when we detected final answer during streaming
-                                // But if somehow we reach here (e.g., non-streaming mode), handle it
-                                if !isFinalAnswer {
-                                    self.logger.info("Agent completed with final answer after \(thoughtCount) thought(s)")
-                                    continuation.yield(.content(ChatMessageContent(
-                                        role: .assistant,
-                                        content: answer,
-                                        files: accumulatedFiles,
-                                        usage: lastUsage
-                                    )))
-                                }
-                                continuation.finish()
-                                return
-
                             case .nextStep(let stepType, let stepContent):
                                 // Execute the next step based on type
                                 self.logger.debug("Next step: \(stepType)")
@@ -234,6 +189,18 @@ public final class AgentExecutor: Sendable {
                                                 context: invocationContext
                                             )
                                             self.logger.debug("Tool execution result: \(observation.prefix(100))...")
+
+                                            if toolCall.tool == self.finalAnswerToolName {
+                                                self.logger.info("Final answer tool executed after \(thoughtCount) thought(s)")
+                                                continuation.yield(.content(ChatMessageContent(
+                                                    role: .assistant,
+                                                    content: observation,
+                                                    files: accumulatedFiles,
+                                                    usage: lastUsage
+                                                )))
+                                                continuation.finish()
+                                                return
+                                            }
 
                                             // Emit observation (action needs observation)
                                             await self.emitObservation(
@@ -322,7 +289,6 @@ public final class AgentExecutor: Sendable {
         context: [ChatMessageContent],
         stream: Bool,
         thoughtNumber: Int,
-        config: AgentConfig,
         metadata: Metadata?,
         onStep: @escaping  (AgentStep) async -> Void
     ) async throws -> AsyncThrowingStream<ChatMessageContent, Error> {
@@ -340,7 +306,6 @@ public final class AgentExecutor: Sendable {
                         var accumulatedMessage: ChatMessageContent?
                         var streamStepId: UUID? = nil
                         var creditsResult: CreditsResult?
-                        var isFinalAnswer = false
 
                         for try await result in responseStream {
                             switch result {
@@ -369,39 +334,20 @@ public final class AgentExecutor: Sendable {
 
                                     guard let message = accumulatedMessage, let content = message.content else { continue }
 
-                                    // Check if this is a final answer
-                                    if !isFinalAnswer && self.parseFinalAnswer(from: content) != nil {
-                                        isFinalAnswer = true
-                                        // Send final thought step before final answer (truncated)
-                                        let thoughtContent = self.truncateAtActionKeyword(content)
-                                        if !thoughtContent.isEmpty {
-                                            let thoughtStep = AgentStep(
-                                                id: streamStepId ?? UUID(),
-                                                stepNumber: thoughtNumber,
-                                                type: .thought,
-                                                content: thoughtContent
-                                            )
-                                            await onStep(thoughtStep)
-                                        }
-                                        // Don't emit any more thought steps after this
-                                    }
+                                    // Emit/update thought step in real-time
+                                    // Truncate thought content at first action keyword to avoid duplication
+                                    let thoughtContent = self.truncateAtActionKeyword(content)
 
-                                    // Emit/update thought step in real-time (only if not final answer)
-                                    if !isFinalAnswer {
-                                        // Truncate thought content at first action keyword to avoid duplication
-                                        let thoughtContent = self.truncateAtActionKeyword(content)
-
-                                        let thoughtStep = AgentStep(
-                                            id: streamStepId ?? UUID(),
-                                            stepNumber: thoughtNumber,
-                                            type: .thought,
-                                            content: thoughtContent
-                                        )
-                                        if streamStepId == nil {
-                                            streamStepId = thoughtStep.id
-                                        }
-                                        await onStep(thoughtStep)
+                                    let thoughtStep = AgentStep(
+                                        id: streamStepId ?? UUID(),
+                                        stepNumber: thoughtNumber,
+                                        type: .thought,
+                                        content: thoughtContent
+                                    )
+                                    if streamStepId == nil {
+                                        streamStepId = thoughtStep.id
                                     }
+                                    await onStep(thoughtStep)
 
                                     // Yield the accumulated message
                                     continuation.yield(message)
@@ -480,7 +426,7 @@ public final class AgentExecutor: Sendable {
 
     /// Truncate content at first action keyword to prevent duplication in streaming
     private func truncateAtActionKeyword(_ text: String) -> String {
-        let keywords = ["Action:", "Plan:", "Reflection:", "Final Answer:"]
+        let keywords = ["Action:", "Plan:", "Reflection:"]
 
         var earliestRange: Range<String.Index>? = nil
 
@@ -502,14 +448,8 @@ public final class AgentExecutor: Sendable {
 
     /// Parse thought response to determine next action
     /// Always tries to parse all possible formats based on actual content
-    private func parseThoughtResponse(_ text: String, config: AgentConfig) -> ThoughtResponse {
-        // Note: config parameter kept for compatibility but no longer used for parsing logic
-        // Priority 1: Check for final answer (always check, as every agent must return answer)
-        if let finalAnswer = parseFinalAnswer(from: text) {
-            return .finalAnswer(finalAnswer)
-        }
-
-        // Priority 2: Check for each step type based on actual content
+    private func parseThoughtResponse(_ text: String) -> ThoughtResponse {
+        // Priority 1: Check for each step type based on actual content
         // Order matters: action > plan > reflection
         if let toolCall = parseToolCall(from: text) {
             return .nextStep(.action, .toolCall(toolCall))
@@ -547,30 +487,6 @@ public final class AgentExecutor: Sendable {
         }
 
         return ToolCall(tool: action, input: input)
-    }
-
-    /// Parse final answer from LLM response
-    private func parseFinalAnswer(from text: String) -> String? {
-        let lines = text.components(separatedBy: "\n")
-
-        for (index, line) in lines.enumerated() {
-            if line.hasPrefix("Final Answer:") {
-                let answer = line.replacingOccurrences(of: "Final Answer:", with: "").trimmingCharacters(in: .whitespaces)
-
-                if !answer.isEmpty {
-                    let remainingLines = lines[(index + 1)...].joined(separator: "\n")
-                    if !remainingLines.isEmpty {
-                        return answer + "\n" + remainingLines
-                    }
-                    return answer
-                }
-
-                let remainingLines = lines[(index + 1)...].joined(separator: "\n")
-                return remainingLines.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-
-        return nil
     }
 
     /// Parse plan from LLM response

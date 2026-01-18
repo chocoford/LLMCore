@@ -175,10 +175,32 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     /// Generate strategy instructions based on allowed steps
     /// - Returns: Combined instruction text from all allowed steps
     private func generateStrategyInstructions() -> String {
-        var steps = allowedSteps
-        if tools.isEmpty {
-            steps.remove(.action)
+        let steps = allowedSteps
+        let finalAnswerToolName = "final_answer"
+        let thoughtKeywordNotice = "DO NOT output any action keywords (Action:, Plan:, Reflection:) in your thought."
+
+        let finalAnswerInstruction: String
+        if steps.isEmpty {
+            finalAnswerInstruction = """
+            After your thought is complete, respond with:
+            Action: \(finalAnswerToolName)
+            Input: {"answer": "<your_answer>"}
+            """
+        } else {
+            finalAnswerInstruction = """
+            After your thought is complete:
+            If you already have enough information, respond with:
+            Action: \(finalAnswerToolName)
+            Input: {"answer": "<your_answer>"}
+            Otherwise, if another format is allowed, output exactly ONE of the allowed formats on a new line.
+            """
         }
+
+        let finalAnswerKeywords = """
+        When providing the final answer, respond in the same language as the user's question.
+        CRITICAL: You MUST use the EXACT English keywords "Action:" and "Input:" shown above.
+        DO NOT translate these keywords to any other language. The system parser only recognizes these English keywords.
+        """
 
         return """
         # Strategy Instructions
@@ -187,27 +209,13 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         You should reach the final answer by thinking the problem through, and when you do, always frame your thoughts as "the user asked me to xxx."
 
         IMPORTANT: Your thought should ONLY contain your reasoning process.
-        DO NOT output any action keywords (Action:, Plan:, Reflection:, Final Answer:) in your thought.
+        \(thoughtKeywordNotice)
         """
-        +
-        (steps.isEmpty
-        ? """
-        After your thought is complete: respond with "Final Answer: <your_answer>" and complete the task.
-        """
-        : """
-        After your thought is complete:
-        If you already have enough information, respond with "Final Answer: <your_answer>" and complete the task.
-        Otherwise, if another format is allowed, output exactly ONE of the allowed formats on a new line.
-        """)
+        + finalAnswerInstruction
         + {
             "\n\n" + Array(steps).generatePrompt()
         }()
-        +
-        """
-        When providing the Final Answer, respond in the same language as the user's question.
-        CRITICAL: You MUST use the EXACT English keywords shown above.
-        DO NOT translate these keywords to any other language. The system parser only recognizes these English keywords.
-        """
+        + "\n\n" + finalAnswerKeywords
 
 //        IMPORTANT - Final Answer Format:
 //        When you have enough information to answer the user's question, you MUST respond with:
