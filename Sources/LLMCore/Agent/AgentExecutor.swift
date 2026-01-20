@@ -31,18 +31,6 @@ public enum AgentError: Error, LocalizedError {
     }
 }
 
-/// Parsed response from thought step
-private enum ThoughtResponse {
-    case nextStep(AgentStepType, StepContent)
-    case unknown(String)  // Continue without specific action
-}
-
-/// Content of a step
-private enum StepContent {
-    case toolCall(ToolCall)
-    case text(String)
-}
-
 public struct EmptyMetadata: ContentModel {
     public init() {}
 }
@@ -157,119 +145,147 @@ public final class AgentExecutor: Sendable {
                         self.logger.debug("Thought content (first 200 chars): \(thoughtContent.prefix(200))")
                         let response = self.parseThoughtResponse(thoughtContent)
 
-                        // Step 3: Handle the response with switch (only if not already handled as final answer)
-                        switch response {
-                            case .nextStep(let stepType, let stepContent):
-                                // Execute the next step based on type
-                                self.logger.debug("Next step: \(stepType)")
-                                // Handle step execution based on type
-                                switch stepType {
-                                    case .action:
-                                        // Action requires tool execution
-                                        guard case .toolCall(let toolCall) = stepContent else {
-                                            throw AgentError.invalidToolCall("Invalid action content")
-                                        }
+                        // Step 3: Handle the directive
+                        if let response {
+                            switch response {
+                            case .action(let toolCall):
+                                self.logger.debug("Next step: action")
 
-                                        // Emit action step
-                                        let actionStep = AgentStep(
-                                            stepNumber: thoughtCount,
-                                            type: .action,
-                                            content: "Action: \(toolCall.tool)\nInput: \(toolCall.input)"
-                                        )
-                                        await onStep(actionStep)
+                                // Emit action step
+                                let actionStep = AgentStep(
+                                    stepNumber: thoughtCount,
+                                    type: .action,
+                                    content: "Action: \(toolCall.tool)\nInput: \(toolCall.input)"
+                                )
+                                await onStep(actionStep)
 
-                                        // Execute tool
-                                        guard let tool = tools.first(where: { $0.name == toolCall.tool }) else {
-                                            throw AgentError.toolNotFound(toolCall.tool)
-                                        }
-
-                                        do {
-                                            let observation = try await tool.execute(
-                                                toolCall.input,
-                                                context: invocationContext
-                                            )
-                                            self.logger.debug("Tool execution result: \(observation.prefix(100))...")
-
-                                            if toolCall.tool == self.finalAnswerToolName {
-                                                self.logger.info("Final answer tool executed after \(thoughtCount) thought(s)")
-                                                continuation.yield(.content(ChatMessageContent(
-                                                    role: .assistant,
-                                                    content: observation,
-                                                    files: accumulatedFiles,
-                                                    usage: lastUsage
-                                                )))
-                                                continuation.finish()
-                                                return
-                                            }
-
-                                            // Emit observation (action needs observation)
-                                            await self.emitObservation(
-                                                stepNumber: thoughtCount,
-                                                content: "Observation: \(observation)",
-                                                onStep: onStep
-                                            )
-
-                                            // Add thought and observation to context
-                                            context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
-                                            context.append(ChatMessageContent(role: .system, content: "Observation: \(observation)"))
-
-                                        } catch {
-                                            let errorMsg = "Tool execution failed: \(error.localizedDescription)"
-                                            self.logger.error("\(errorMsg)")
-
-                                            // Emit error observation
-                                            await self.emitObservation(
-                                                stepNumber: thoughtCount,
-                                                content: "Error: \(errorMsg)",
-                                                onStep: onStep
-                                            )
-
-                                            context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
-                                            // Add error to context
-                                            context.append(ChatMessageContent(role: .system, content: errorMsg))
-                                        }
-
-                                    case .plan, .reflection:
-                                        // Simple steps that don't need async execution
-                                        guard case .text(let textContent) = stepContent else {
-                                            throw AgentError.invalidToolCall("Invalid \(stepType) content")
-                                        }
-
-                                        // Emit step
-                                        let step = AgentStep(
-                                            stepNumber: thoughtCount,
-                                            type: stepType == .plan ? .plan : .reflection,
-                                            content: textContent
-                                        )
-                                        await onStep(step)
-
-                                        // Add thought and step to context
-                                        context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
-
-                                        let stepPrefix = stepType == .plan ? "Plan:" : "Reflection:"
-                                        context.append(ChatMessageContent(
-                                            role: .assistant,
-                                            content: "\(stepPrefix) \(textContent)"
-                                        ))
-
+                                // Execute tool
+                                guard let tool = tools.first(where: { $0.name == toolCall.tool }) else {
+                                    throw AgentError.toolNotFound(toolCall.tool)
                                 }
-                                // Continue to next thought
+
+                                do {
+                                    let observation = try await tool.execute(
+                                        toolCall.input,
+                                        context: invocationContext
+                                    )
+                                    self.logger.debug("Tool execution result: \(observation.prefix(100))...")
+
+                                    if toolCall.tool == self.finalAnswerToolName {
+                                        self.logger.info("Final answer tool executed after \(thoughtCount) thought(s)")
+                                        continuation.yield(.content(ChatMessageContent(
+                                            role: .assistant,
+                                            content: observation,
+                                            files: accumulatedFiles,
+                                            usage: lastUsage
+                                        )))
+                                        continuation.finish()
+                                        return
+                                    }
+
+                                    // Emit observation (action needs observation)
+                                    await self.emitObservation(
+                                        stepNumber: thoughtCount,
+                                        content: "Observation: \(observation)",
+                                        onStep: onStep
+                                    )
+
+                                    // Add thought and observation to context
+                                    context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
+                                    context.append(ChatMessageContent(role: .system, content: "Observation: \(observation)"))
+
+                                } catch {
+                                    let errorMsg = "Tool execution failed: \(error.localizedDescription)"
+                                    self.logger.error("\(errorMsg)")
+
+                                    // Emit error observation
+                                    await self.emitObservation(
+                                        stepNumber: thoughtCount,
+                                        content: "Error: \(errorMsg)",
+                                        onStep: onStep
+                                    )
+
+                                    context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
+                                    // Add error to context
+                                    context.append(ChatMessageContent(role: .system, content: errorMsg))
+                                }
+
                                 continue
 
-                            case .unknown(let content):
-                                // No specific action detected - yield as final answer
-                                self.logger.info("No specific action detected after \(thoughtCount) thought(s), treating as final answer")
-                                self.logger.debug("Content: \(content.prefix(200))")
-                                if !isFinalAnswer {
-                                    continuation.yield(.content(ChatMessageContent(
-                                        role: .assistant,
-                                        content: content,
-                                        files: accumulatedFiles,
-                                        usage: lastUsage
-                                    )))
+                            case .finalAnswer(let answer):
+                                self.logger.info("Final answer directive after \(thoughtCount) thought(s)")
+
+                                let actionInput = self.makeFinalAnswerInput(answer)
+                                let actionStep = AgentStep(
+                                    stepNumber: thoughtCount,
+                                    type: .action,
+                                    content: "Action: \(self.finalAnswerToolName)\nInput: \(actionInput)"
+                                )
+                                await onStep(actionStep)
+
+                                guard let tool = tools.first(where: { $0.name == self.finalAnswerToolName }) else {
+                                    throw AgentError.toolNotFound(self.finalAnswerToolName)
                                 }
+
+                                let observation = try await tool.execute(
+                                    actionInput,
+                                    context: invocationContext
+                                )
+                                self.logger.debug("Final answer tool result: \(observation.prefix(100))...")
+
+                                continuation.yield(.content(ChatMessageContent(
+                                    role: .assistant,
+                                    content: observation,
+                                    files: accumulatedFiles,
+                                    usage: lastUsage
+                                )))
                                 continuation.finish()
                                 return
+
+                            case .plan(let textContent):
+                                self.logger.debug("Next step: plan")
+
+                                let step = AgentStep(
+                                    stepNumber: thoughtCount,
+                                    type: .plan,
+                                    content: textContent
+                                )
+                                await onStep(step)
+
+                                // Add thought and step to context
+                                context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
+                                context.append(ChatMessageContent(role: .assistant, content: "Plan: \(textContent)"))
+
+                                continue
+
+                            case .reflection(let textContent):
+                                self.logger.debug("Next step: reflection")
+
+                                let step = AgentStep(
+                                    stepNumber: thoughtCount,
+                                    type: .reflection,
+                                    content: textContent
+                                )
+                                await onStep(step)
+
+                                // Add thought and step to context
+                                context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
+                                context.append(ChatMessageContent(role: .assistant, content: "Reflection: \(textContent)"))
+
+                                continue
+                            }
+                        } else {
+                            // No specific action detected - yield as final answer
+                            self.logger.info("No specific action detected after \(thoughtCount) thought(s), treating as final answer")
+                            self.logger.debug("Content: \(thoughtContent.prefix(200))")
+                            continuation.yield(.content(ChatMessageContent(
+                                role: .assistant,
+                                content: thoughtContent,
+                                files: accumulatedFiles,
+                                usage: lastUsage
+                            )))
+                            continuation.finish()
+                            return
                         }
                     }
 
@@ -446,25 +462,49 @@ public final class AgentExecutor: Sendable {
         return String(text[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Parse thought response to determine next action
+    /// Parse thought response to determine next directive
     /// Always tries to parse all possible formats based on actual content
-    private func parseThoughtResponse(_ text: String) -> ThoughtResponse {
+    private func parseThoughtResponse(_ text: String) -> AgentDirective? {
         // Priority 1: Check for each step type based on actual content
-        // Order matters: action > plan > reflection
+        // Order matters: final_answer action > action > plan > reflection
         if let toolCall = parseToolCall(from: text) {
-            return .nextStep(.action, .toolCall(toolCall))
+            if toolCall.tool == finalAnswerToolName,
+               let answer = parseFinalAnswerInput(toolCall.input) {
+                return .finalAnswer(answer)
+            }
+            return .action(toolCall)
         }
 
         if let plan = parsePlan(from: text) {
-            return .nextStep(.plan, .text(plan))
+            return .plan(plan)
         }
 
         if let reflection = parseReflection(from: text) {
-            return .nextStep(.reflection, .text(reflection))
+            return .reflection(reflection)
         }
 
         // Priority 3: Unknown - no specific action detected
-        return .unknown(text)
+        return nil
+    }
+
+    private func parseFinalAnswerInput(_ input: String) -> String? {
+        guard let data = input.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let answer = json["answer"] as? String,
+              !answer.isEmpty else {
+            return nil
+        }
+        return answer
+    }
+
+    private func makeFinalAnswerInput(_ answer: String) -> String {
+        let payload: [String: Any] = ["answer": answer]
+        if let data = try? JSONSerialization.data(withJSONObject: payload),
+           let text = String(data: data, encoding: .utf8) {
+            return text
+        }
+        let escaped = answer.replacingOccurrences(of: "\"", with: "\\\"")
+        return "{\"answer\":\"\(escaped)\"}"
     }
 
     /// Parse tool call from LLM response

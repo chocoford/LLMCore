@@ -11,35 +11,35 @@ public enum AgentStepType: String, Codable, Sendable, Hashable {
     case plan  // 规划步骤
     case action  // 使用工具（执行后自动产生观察）
     case reflection  // 自我反思
-
+    
     /// Whether this step type automatically produces an observation
     public var needsObservation: Bool {
         switch self {
-        case .action:
-            return true
-        case .plan, .reflection:
-            return false
+            case .action:
+                return true
+            case .plan, .reflection:
+                return false
         }
     }
-
+    
     /// Instruction for this step type
     public var instruction: String {
         switch self {
-        case .action:
-            return """
+            case .action:
+                return """
                 When you need to use a tool, respond with:
                 Action: <tool_name>
                 Input: <json_input>
-
+                
                 After the action executes, you will receive an observation with the result.
                 """
-        case .plan:
-            return """
+            case .plan:
+                return """
                 When you need to create a plan, respond with:
                 Plan: <your_plan>
                 """
-        case .reflection:
-            return """
+            case .reflection:
+                return """
                 When you need to reflect on your actions, respond with:
                 Reflection: <your_reflection>
                 """
@@ -60,7 +60,7 @@ extension Array where Element == AgentStepType {
                 instructions += stepType.instruction + "\n\n"
             }
         }
-
+        
         return instructions
     }
 }
@@ -70,19 +70,19 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     /// Allowed step types for this agent
     /// Empty set means direct response (traditional chat)
     public internal(set) var allowedSteps: Set<AgentStepType>
-
+    
     /// Available tools for the agent
     public internal(set) var tools: [String]
-
+    
     /// System prompt for the agent
     public internal(set) var systemPrompt: String?
-
+    
     /// Maximum number of thought steps allowed
     public internal(set) var maxThoughts: Int
-
+    
     /// Temperature for LLM sampling
     public var temperature: Double
-
+    
     public init(
         allowedSteps: Set<AgentStepType> = [],
         tools: [String] = [],
@@ -96,7 +96,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         self.maxThoughts = maxThoughts
         self.temperature = temperature
     }
-
+    
     private enum CodingKeys: String, CodingKey {
         case allowedSteps
         case tools
@@ -105,17 +105,17 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         case maxThoughts
         case temperature
     }
-
+    
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.allowedSteps = try container.decodeIfPresent(Set<AgentStepType>.self, forKey: .allowedSteps) ?? []
         self.tools = try container.decodeIfPresent([String].self, forKey: .tools) ?? []
         self.systemPrompt = try container.decodeIfPresent(String.self, forKey: .systemPrompt)
-            ?? container.decodeIfPresent(String.self, forKey: .systemMessage)
+        ?? container.decodeIfPresent(String.self, forKey: .systemMessage)
         self.maxThoughts = try container.decodeIfPresent(Int.self, forKey: .maxThoughts) ?? 10
         self.temperature = try container.decodeIfPresent(Double.self, forKey: .temperature) ?? 0.7
     }
-
+    
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(allowedSteps, forKey: .allowedSteps)
@@ -124,12 +124,12 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         try container.encode(maxThoughts, forKey: .maxThoughts)
         try container.encode(temperature, forKey: .temperature)
     }
-
+    
     /// Traditional chat configuration (no steps, direct response)
     public static var chat: AgentConfig {
         AgentConfig(allowedSteps: [])
     }
-
+    
     /// ReAct agent configuration (thought → action with automatic observation)
     public static func react(
         tools: [String],
@@ -143,7 +143,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
             maxThoughts: maxThoughts
         )
     }
-
+    
     /// Plan-and-Execute agent configuration
     public static func planAndExecute(
         tools: [String],
@@ -157,7 +157,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
             maxThoughts: maxThoughts
         )
     }
-
+    
     /// Reflexion agent configuration (with self-reflection)
     public static func reflexion(
         tools: [String],
@@ -171,14 +171,14 @@ public struct AgentConfig: Codable, Sendable, Equatable {
             maxThoughts: maxThoughts
         )
     }
-
+    
     /// Generate strategy instructions based on allowed steps
     /// - Returns: Combined instruction text from all allowed steps
     private func generateStrategyInstructions() -> String {
         let steps = allowedSteps
         let finalAnswerToolName = "final_answer"
         let thoughtKeywordNotice = "DO NOT output any action keywords (Action:, Plan:, Reflection:) in your thought."
-
+        
         let finalAnswerInstruction: String
         if steps.isEmpty {
             finalAnswerInstruction = """
@@ -195,20 +195,45 @@ public struct AgentConfig: Codable, Sendable, Equatable {
             Otherwise, if another format is allowed, output exactly ONE of the allowed formats on a new line.
             """
         }
-
+        
         let finalAnswerKeywords = """
         When providing the final answer, respond in the same language as the user's question.
         CRITICAL: You MUST use the EXACT English keywords "Action:" and "Input:" shown above.
         DO NOT translate these keywords to any other language. The system parser only recognizes these English keywords.
         """
-
+        
         return """
+        Use the instructions below and the tools available to you to assist the user.
+
+        # Tone and style
+        
+        - Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.
+        - Your responses should be short and concise. You can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.
+        - When you are ready to respond to the user, call the `final_answer` tool with a JSON object like {\"answer\": \"...\"}. Do not output the final response as plain text.
+        - NEVER create files unless they're absolutely necessary for achieving your goal. ALWAYS prefer editing an existing file to creating a new one. This includes markdown files.
+        
+        # Professional objectivity
+        
+        Prioritize technical accuracy and truthfulness over validating the user's beliefs. Focus on facts and problem-solving, providing direct, objective technical info without any unnecessary superlatives, praise, or emotional validation. It is best for the user if Claude honestly applies the same rigorous standards to all ideas and disagrees when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs. Avoid using over-the-top validation or excessive praise when responding to users such as "You're absolutely right" or similar phrases.
+        
         # Strategy Instructions
+        
+        Your job is NOT to answer the user directly.
+        Your job is to decide the NEXT STEP to take in order to eventually answer the user.
+        
+        In every response, you must:
 
-        Think step by step about what you need to do next.
-        You should reach the final answer by thinking the problem through, and when you do, always frame your thoughts as "the user asked me to xxx."
-
+        1. THINK internally about the current situation.
+        2. Decide exactly ONE next step to take.
+        3. Output that decision in a strict format.
+        
+        After each decision, the system may call you again with updated context.
+        Do not assume this is your final turn unless you choose Final Answer.
+        
         IMPORTANT: Your thought should ONLY contain your reasoning process.
+        Do not answer the user in your thought. Use the final answer tool for all user-visible replies.
+        IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.
+                
         \(thoughtKeywordNotice)
         """
         + finalAnswerInstruction
@@ -216,15 +241,15 @@ public struct AgentConfig: Codable, Sendable, Equatable {
             "\n\n" + Array(steps).generatePrompt()
         }()
         + "\n\n" + finalAnswerKeywords
-
-//        IMPORTANT - Final Answer Format:
-//        When you have enough information to answer the user's question, you MUST respond with:
-//        Final Answer: <your_answer>
-//
-//        This is the ONLY way to complete the task. Do not just provide an answer without this format.
-//
+        // You should reach the final answer by thinking the problem through, and when you do, always frame your thoughts as "the user asked me to xxx."
+        //        IMPORTANT - Final Answer Format:
+        //        When you have enough information to answer the user's question, you MUST respond with:
+        //        Final Answer: <your_answer>
+        //
+        //        This is the ONLY way to complete the task. Do not just provide an answer without this format.
+        //
     }
-
+    
     /// Combined prompt for the agent (system prompt + strategy instructions).
     public var prompt: String {
         var parts: [String] = []
