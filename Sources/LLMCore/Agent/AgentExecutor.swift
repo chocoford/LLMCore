@@ -31,6 +31,11 @@ public enum AgentError: Error, LocalizedError {
     }
 }
 
+private struct ParsedDecision {
+    let directive: AgentDirective
+    let title: String?
+}
+
 public struct EmptyMetadata: ContentModel {
     public init() {}
 }
@@ -40,7 +45,6 @@ public final class AgentExecutor: Sendable {
     private let logger = Logger(label: "AgentExecutor")
     private let llmProvider: LLMProvider
     private let toolRegistry: ToolRegistry
-    private let finalAnswerToolName = "final_answer"
 
     public init(llmProvider: LLMProvider, toolRegistry: ToolRegistry) {
         self.llmProvider = llmProvider
@@ -139,15 +143,16 @@ public final class AgentExecutor: Sendable {
                             lastUsage = usage
                         }
 
-                        let thoughtContent = finalMessage.content ?? ""
+                        let rawContent = finalMessage.content ?? ""
+                        let thoughtContent = self.extractReasoning(from: rawContent) ?? rawContent
 
                         // Step 2: Parse the thought response
-                        self.logger.debug("Thought content (first 200 chars): \(thoughtContent.prefix(200))")
-                        let response = self.parseThoughtResponse(thoughtContent)
+                        self.logger.debug("Thought content (first 200 chars): \(rawContent.prefix(200))")
+                        let response = self.parseThoughtResponse(rawContent)
 
                         // Step 3: Handle the directive
                         if let response {
-                            switch response {
+                            switch response.directive {
                             case .action(let toolCall):
                                 self.logger.debug("Next step: action")
 
@@ -170,18 +175,6 @@ public final class AgentExecutor: Sendable {
                                         context: invocationContext
                                     )
                                     self.logger.debug("Tool execution result: \(observation.prefix(100))...")
-
-                                    if toolCall.tool == self.finalAnswerToolName {
-                                        self.logger.info("Final answer tool executed after \(thoughtCount) thought(s)")
-                                        continuation.yield(.content(ChatMessageContent(
-                                            role: .assistant,
-                                            content: observation,
-                                            files: accumulatedFiles,
-                                            usage: lastUsage
-                                        )))
-                                        continuation.finish()
-                                        return
-                                    }
 
                                     // Emit observation (action needs observation)
                                     await self.emitObservation(
@@ -214,28 +207,11 @@ public final class AgentExecutor: Sendable {
 
                             case .finalAnswer(let answer):
                                 self.logger.info("Final answer directive after \(thoughtCount) thought(s)")
-
-                                let actionInput = self.makeFinalAnswerInput(answer)
-                                let actionStep = AgentStep(
-                                    stepNumber: thoughtCount,
-                                    type: .action,
-                                    content: "Action: \(self.finalAnswerToolName)\nInput: \(actionInput)"
-                                )
-                                await onStep(actionStep)
-
-                                guard let tool = tools.first(where: { $0.name == self.finalAnswerToolName }) else {
-                                    throw AgentError.toolNotFound(self.finalAnswerToolName)
-                                }
-
-                                let observation = try await tool.execute(
-                                    actionInput,
-                                    context: invocationContext
-                                )
-                                self.logger.debug("Final answer tool result: \(observation.prefix(100))...")
-
+                                let title = response.title
                                 continuation.yield(.content(ChatMessageContent(
                                     role: .assistant,
-                                    content: observation,
+                                    content: answer,
+                                    title: title,
                                     files: accumulatedFiles,
                                     usage: lastUsage
                                 )))
@@ -352,18 +328,18 @@ public final class AgentExecutor: Sendable {
 
                                     // Emit/update thought step in real-time
                                     // Truncate thought content at first action keyword to avoid duplication
-                                    let thoughtContent = self.truncateAtActionKeyword(content)
-
-                                    let thoughtStep = AgentStep(
-                                        id: streamStepId ?? UUID(),
-                                        stepNumber: thoughtNumber,
-                                        type: .thought,
-                                        content: thoughtContent
-                                    )
-                                    if streamStepId == nil {
-                                        streamStepId = thoughtStep.id
+                                    if let thoughtContent = self.extractReasoning(from: content) {
+                                        let thoughtStep = AgentStep(
+                                            id: streamStepId ?? UUID(),
+                                            stepNumber: thoughtNumber,
+                                            type: .thought,
+                                            content: thoughtContent
+                                        )
+                                        if streamStepId == nil {
+                                            streamStepId = thoughtStep.id
+                                        }
+                                        await onStep(thoughtStep)
                                     }
-                                    await onStep(thoughtStep)
 
                                     // Yield the accumulated message
                                     continuation.yield(message)
@@ -407,11 +383,12 @@ public final class AgentExecutor: Sendable {
                             throw AgentError.toolExecutionFailed("Empty response from LLM")
                         }
 
+                        let thoughtContent = self.extractReasoning(from: content) ?? content
                         // Always emit thought step for non-streaming mode
                         let thoughtStep = AgentStep(
                             stepNumber: thoughtNumber,
                             type: .thought,
-                            content: content
+                            content: thoughtContent
                         )
                         await onStep(thoughtStep)
 
@@ -440,141 +417,180 @@ public final class AgentExecutor: Sendable {
         await onStep(observationStep)
     }
 
-    /// Truncate content at first action keyword to prevent duplication in streaming
-    private func truncateAtActionKeyword(_ text: String) -> String {
-        let keywords = ["Action:", "Plan:", "Reflection:"]
+    private func extractReasoning(from text: String) -> String? {
+        if let jsonText = extractJSONObject(from: text[text.startIndex...]),
+           let data = jsonText.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let reasoning = json["reasoning"] as? String,
+           !reasoning.isEmpty {
+            return reasoning
+        }
 
-        var earliestRange: Range<String.Index>? = nil
+        return extractReasoningFromPartialJSON(text)
+    }
 
-        for keyword in keywords {
-            if let range = text.range(of: keyword) {
-                if earliestRange == nil || range.lowerBound < earliestRange!.lowerBound {
-                    earliestRange = range
+    private func extractReasoningFromPartialJSON(_ text: String) -> String? {
+        guard let keyRange = text.range(of: "\"reasoning\"") else {
+            return nil
+        }
+
+        let afterKey = text[keyRange.upperBound...]
+        guard let colonIndex = afterKey.firstIndex(of: ":") else {
+            return nil
+        }
+
+        var index = afterKey.index(after: colonIndex)
+        while index < afterKey.endIndex, afterKey[index].isWhitespace {
+            index = afterKey.index(after: index)
+        }
+
+        guard index < afterKey.endIndex, afterKey[index] == "\"" else {
+            return nil
+        }
+
+        index = afterKey.index(after: index)
+        var result = ""
+        var escaped = false
+        var current = index
+
+        while current < afterKey.endIndex {
+            let character = afterKey[current]
+            if escaped {
+                switch character {
+                case "n":
+                    result.append("\n")
+                case "t":
+                    result.append("\t")
+                case "r":
+                    result.append("\r")
+                case "\"":
+                    result.append("\"")
+                case "\\":
+                    result.append("\\")
+                default:
+                    result.append(character)
+                }
+                escaped = false
+            } else {
+                if character == "\\" {
+                    escaped = true
+                } else if character == "\"" {
+                    return result
+                } else {
+                    result.append(character)
                 }
             }
+            current = afterKey.index(after: current)
         }
 
-        guard let range = earliestRange else {
-            return text
-        }
-
-        // Return content before the keyword, trimmed
-        return String(text[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return result
     }
 
     /// Parse thought response to determine next directive
     /// Always tries to parse all possible formats based on actual content
-    private func parseThoughtResponse(_ text: String) -> AgentDirective? {
+    private func parseThoughtResponse(_ text: String) -> ParsedDecision? {
         // Priority 1: Check for each step type based on actual content
-        // Order matters: final_answer action > action > plan > reflection
-        if let toolCall = parseToolCall(from: text) {
-            if toolCall.tool == finalAnswerToolName,
-               let answer = parseFinalAnswerInput(toolCall.input) {
-                return .finalAnswer(answer)
-            }
-            return .action(toolCall)
-        }
-
-        if let plan = parsePlan(from: text) {
-            return .plan(plan)
-        }
-
-        if let reflection = parseReflection(from: text) {
-            return .reflection(reflection)
+        // Order matters: decision JSON
+        if let directive = parseDecisionJSON(from: text) {
+            return directive
         }
 
         // Priority 3: Unknown - no specific action detected
         return nil
     }
 
-    private func parseFinalAnswerInput(_ input: String) -> String? {
-        guard let data = input.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let answer = json["answer"] as? String,
-              !answer.isEmpty else {
-            return nil
-        }
-        return answer
-    }
-
-    private func makeFinalAnswerInput(_ answer: String) -> String {
-        let payload: [String: Any] = ["answer": answer]
-        if let data = try? JSONSerialization.data(withJSONObject: payload),
-           let text = String(data: data, encoding: .utf8) {
-            return text
-        }
-        let escaped = answer.replacingOccurrences(of: "\"", with: "\\\"")
-        return "{\"answer\":\"\(escaped)\"}"
-    }
-
-    /// Parse tool call from LLM response
-    private func parseToolCall(from text: String) -> ToolCall? {
-        let lines = text.components(separatedBy: "\n")
-
-        var action: String?
-        var input: String?
-
-        for line in lines {
-            if line.hasPrefix("Action:") {
-                action = line.replacingOccurrences(of: "Action:", with: "").trimmingCharacters(in: .whitespaces)
-            } else if line.hasPrefix("Input:") {
-                input = line.replacingOccurrences(of: "Input:", with: "").trimmingCharacters(in: .whitespaces)
-            }
-        }
-
-        guard let action = action, let input = input else {
+    private func parseDecisionJSON(from text: String) -> ParsedDecision? {
+        guard let jsonText = extractJSONObject(from: text[text.startIndex...]) else {
             return nil
         }
 
-        return ToolCall(tool: action, input: input)
-    }
-
-    /// Parse plan from LLM response
-    private func parsePlan(from text: String) -> String? {
-        let lines = text.components(separatedBy: "\n")
-
-        for (index, line) in lines.enumerated() {
-            if line.hasPrefix("Plan:") {
-                let plan = line.replacingOccurrences(of: "Plan:", with: "").trimmingCharacters(in: .whitespaces)
-
-                if !plan.isEmpty {
-                    let remainingLines = lines[(index + 1)...].joined(separator: "\n")
-                    if !remainingLines.isEmpty {
-                        return plan + "\n" + remainingLines
-                    }
-                    return plan
-                }
-
-                let remainingLines = lines[(index + 1)...].joined(separator: "\n")
-                return remainingLines.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+        guard let data = jsonText.data(using: .utf8),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let decision = root["decision"] as? [String: Any],
+              let type = decision["type"] as? String else {
+            return nil
         }
 
+        let title = (root["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedTitle = (title?.isEmpty ?? true) ? nil : title
+
+        func makeDecision(_ directive: AgentDirective) -> ParsedDecision {
+            ParsedDecision(directive: directive, title: normalizedTitle)
+        }
+
+        switch type {
+        case "action":
+            guard let tool = decision["tool"] as? String else {
+                return nil
+            }
+            let inputValue = decision["input"] ?? [:]
+            guard let inputText = encodeJSONValue(inputValue) else {
+                return nil
+            }
+            return makeDecision(.action(ToolCall(tool: tool, input: inputText)))
+
+        case "plan":
+            guard let content = decision["content"] as? String else {
+                return nil
+            }
+            return makeDecision(.plan(content))
+
+        case "reflection":
+            guard let content = decision["content"] as? String else {
+                return nil
+            }
+            return makeDecision(.reflection(content))
+
+        case "final_answer":
+            guard let content = decision["content"] as? String else {
+                return nil
+            }
+            return makeDecision(.finalAnswer(content))
+
+        default:
+            return nil
+        }
+    }
+
+    private func encodeJSONValue(_ value: Any) -> String? {
+        if let value = value as? String {
+            return value
+        }
+        if JSONSerialization.isValidJSONObject(value),
+           let data = try? JSONSerialization.data(withJSONObject: value) {
+            return String(data: data, encoding: .utf8)
+        }
         return nil
     }
 
-    /// Parse reflection from LLM response
-    private func parseReflection(from text: String) -> String? {
-        let lines = text.components(separatedBy: "\n")
-
-        for (index, line) in lines.enumerated() {
-            if line.hasPrefix("Reflection:") {
-                let reflection = line.replacingOccurrences(of: "Reflection:", with: "").trimmingCharacters(in: .whitespaces)
-
-                if !reflection.isEmpty {
-                    let remainingLines = lines[(index + 1)...].joined(separator: "\n")
-                    if !remainingLines.isEmpty {
-                        return reflection + "\n" + remainingLines
-                    }
-                    return reflection
-                }
-
-                let remainingLines = lines[(index + 1)...].joined(separator: "\n")
-                return remainingLines.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
+    private func extractJSONObject(from text: Substring) -> String? {
+        guard let startIndex = text.firstIndex(of: "{") else {
+            return nil
         }
 
-        return nil
+        var depth = 0
+        var endIndex: String.Index? = nil
+        var index = startIndex
+
+        while index < text.endIndex {
+            let character = text[index]
+            if character == "{" {
+                depth += 1
+            } else if character == "}" {
+                depth -= 1
+                if depth == 0 {
+                    endIndex = index
+                    break
+                }
+            }
+            index = text.index(after: index)
+        }
+
+        guard let endIndex else {
+            return nil
+        }
+
+        return String(text[startIndex...endIndex])
     }
 
     /// Direct chat without agent steps

@@ -25,23 +25,42 @@ public enum AgentStepType: String, Codable, Sendable, Hashable {
     /// Instruction for this step type
     public var instruction: String {
         switch self {
+                
             case .action:
                 return """
-                When you need to use a tool, respond with:
-                Action: <tool_name>
-                Input: <json_input>
-                
-                After the action executes, you will receive an observation with the result.
+                Use when you need to call a tool.
+
+                {
+                  "title": "<short title>",
+                  "type": "action",
+                  "tool": "<tool_name>",
+                  "input": <json_object>
+                }
+
+                After the action executes, you will receive an observation.
+                Use that observation to decide your next step.
                 """
+                
             case .plan:
                 return """
-                When you need to create a plan, respond with:
-                Plan: <your_plan>
+                Use when you need to outline a plan or next approach.
+
+                {
+                  "title": "<short title>",
+                  "type": "plan",
+                  "content": "<your plan>"
+                }
                 """
+                
             case .reflection:
                 return """
-                When you need to reflect on your actions, respond with:
-                Reflection: <your_reflection>
+                Use when you need to reflect on previous steps, observations, or strategy.
+
+                {
+                  "title": "<short title>",
+                  "type": "reflection",
+                  "content": "<your reflection>"
+                }
                 """
         }
     }
@@ -176,78 +195,68 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     /// - Returns: Combined instruction text from all allowed steps
     private func generateStrategyInstructions() -> String {
         let steps = allowedSteps
-        let finalAnswerToolName = "final_answer"
-        let thoughtKeywordNotice = "DO NOT output any action keywords (Action:, Plan:, Reflection:) in your thought."
-        
-        let finalAnswerInstruction: String
-        if steps.isEmpty {
-            finalAnswerInstruction = """
-            After your thought is complete, respond with:
-            Action: \(finalAnswerToolName)
-            Input: {"answer": "<your_answer>"}
-            """
-        } else {
-            finalAnswerInstruction = """
-            After your thought is complete:
-            If you already have enough information, respond with:
-            Action: \(finalAnswerToolName)
-            Input: {"answer": "<your_answer>"}
-            Otherwise, if another format is allowed, output exactly ONE of the allowed formats on a new line.
-            """
-        }
-        
-        let finalAnswerKeywords = """
-        When providing the final answer, respond in the same language as the user's question.
-        CRITICAL: You MUST use the EXACT English keywords "Action:" and "Input:" shown above.
-        DO NOT translate these keywords to any other language. The system parser only recognizes these English keywords.
-        """
         
         return """
-        Use the instructions below and the tools available to you to assist the user.
+            Use the instructions below and the tools available to you to assist the user.
 
-        # Tone and style
-        
-        - Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.
-        - Your responses should be short and concise. You can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.
-        - When you are ready to respond to the user, call the `final_answer` tool with a JSON object like {\"answer\": \"...\"}. Do not output the final response as plain text.
-        - NEVER create files unless they're absolutely necessary for achieving your goal. ALWAYS prefer editing an existing file to creating a new one. This includes markdown files.
-        
-        # Professional objectivity
-        
-        Prioritize technical accuracy and truthfulness over validating the user's beliefs. Focus on facts and problem-solving, providing direct, objective technical info without any unnecessary superlatives, praise, or emotional validation. It is best for the user if Claude honestly applies the same rigorous standards to all ideas and disagrees when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs. Avoid using over-the-top validation or excessive praise when responding to users such as "You're absolutely right" or similar phrases.
-        
-        # Strategy Instructions
-        
-        Your job is NOT to answer the user directly.
-        Your job is to decide the NEXT STEP to take in order to eventually answer the user.
-        
-        In every response, you must:
+            Your job is NOT to answer the user directly.
+            Your job is to decide the NEXT STEP to take in order to eventually answer the user.
 
-        1. THINK internally about the current situation.
-        2. Decide exactly ONE next step to take.
-        3. Output that decision in a strict format.
-        
-        After each decision, the system may call you again with updated context.
-        Do not assume this is your final turn unless you choose Final Answer.
-        
-        IMPORTANT: Your thought should ONLY contain your reasoning process.
-        Do not answer the user in your thought. Use the final answer tool for all user-visible replies.
-        IMPORTANT: You must NEVER generate or guess URLs for the user unless you are confident that the URLs are for helping the user with programming. You may use URLs provided by the user in their messages or local files.
-                
-        \(thoughtKeywordNotice)
-        """
-        + finalAnswerInstruction
-        + {
-            "\n\n" + Array(steps).generatePrompt()
-        }()
-        + "\n\n" + finalAnswerKeywords
-        // You should reach the final answer by thinking the problem through, and when you do, always frame your thoughts as "the user asked me to xxx."
-        //        IMPORTANT - Final Answer Format:
-        //        When you have enough information to answer the user's question, you MUST respond with:
-        //        Final Answer: <your_answer>
-        //
-        //        This is the ONLY way to complete the task. Do not just provide an answer without this format.
-        //
+            You must respond in the following JSON format:
+            
+            {
+              "title": "<short title>",
+              "reasoning": "<your explanation for why this decision is made>",
+              "decision": <DECISION>
+            }
+            
+            After each decision, the system may call you again with updated context.
+            Do not assume this is your final turn unless you explicitly choose Final Answer.
+
+            ## Decisions
+
+            You must output exactly ONE of the following DICISIONs:
+
+            \(Array(steps).generatePrompt())
+
+            If you already have enough information to respond to the user, choose:
+
+            {
+                "title": "<short title>",
+                "reasoning": "<your explanation for why this decision is made>",
+                "decision": {
+                    "type": "final_answer",
+                    "content": "<FINAL_ANSWER>"
+                }
+            }
+
+            Rules for Title:
+            - Keep it short (3-8 words).
+            - Use the same language as the user's question.
+            - Summarize the user's intent or current task.
+
+            Rules for Final Answer:
+            - This is the ONLY decision that may contain user-visible content.
+            - Respond in the same language as the user's question.
+            - Do NOT include explanations or reasoning here.
+
+            ## Tone and style
+            
+            - Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.
+            - Your responses should be short and concise. You can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.
+
+            ## Professional objectivity
+            
+            Prioritize technical accuracy and truthfulness over validating the user's beliefs. Focus on facts and problem-solving, providing direct, objective technical info without any unnecessary superlatives, praise, or emotional validation. It is best for the user if Claude honestly applies the same rigorous standards to all ideas and disagrees when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs. Avoid using over-the-top validation or excessive praise when responding to users such as "You're absolutely right" or similar phrases.
+            
+
+            IMPORTANT RULES:
+
+            - Output exactly ONE decision.
+            - Never combine multiple decision types.
+            - Never answer the user outside Final Answer.
+            - Never invent or guess URLs unless they are explicitly provided or required for programming tasks.
+            """
     }
     
     /// Combined prompt for the agent (system prompt + strategy instructions).

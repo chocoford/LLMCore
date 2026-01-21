@@ -13,6 +13,7 @@ public struct ChatMessageContent: ContentModel, Identifiable {
     public var id: String
     public var role: Role
     public var content: String?
+    public var title: String?
     public var files: [File]?
 
     public var usage: CreditsResult?
@@ -21,12 +22,14 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         id: String = UUID().uuidString,
         role: Role,
         content: String? = nil,
+        title: String? = nil,
         files: [File] = [],
         usage: CreditsResult? = nil
     ) {
         self.id = id
         self.role = role
         self.content = content
+        self.title = title
         self.files = files
         self.usage = usage
     }
@@ -36,6 +39,7 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.id = try container.decode(String.self, forKey: .id)
         self.role = try container.decodeIfPresent(ChatMessageContent.Role.self, forKey: .role) ?? .assistant
         self.content = try container.decodeIfPresent(String.self, forKey: .content)
+        self.title = try container.decodeIfPresent(String.self, forKey: .title)
         self.files = try container.decodeIfPresent([ChatMessageContent.File].self, forKey: .files)
         self.usage = try container.decodeIfPresent(CreditsResult.self, forKey: .usage)
     }
