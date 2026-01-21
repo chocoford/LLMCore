@@ -160,7 +160,8 @@ public final class AgentExecutor: Sendable {
                                 let actionStep = AgentStep(
                                     stepNumber: thoughtCount,
                                     type: .action,
-                                    content: "Action: \(toolCall.tool)\nInput: \(toolCall.input)"
+                                    content: "Action: \(toolCall.tool)\nInput: \(toolCall.input)",
+                                    title: response.title
                                 )
                                 await onStep(actionStep)
 
@@ -207,11 +208,9 @@ public final class AgentExecutor: Sendable {
 
                             case .finalAnswer(let answer):
                                 self.logger.info("Final answer directive after \(thoughtCount) thought(s)")
-                                let title = response.title
                                 continuation.yield(.content(ChatMessageContent(
                                     role: .assistant,
                                     content: answer,
-                                    title: title,
                                     files: accumulatedFiles,
                                     usage: lastUsage
                                 )))
@@ -224,7 +223,8 @@ public final class AgentExecutor: Sendable {
                                 let step = AgentStep(
                                     stepNumber: thoughtCount,
                                     type: .plan,
-                                    content: textContent
+                                    content: textContent,
+                                    title: response.title
                                 )
                                 await onStep(step)
 
@@ -240,7 +240,8 @@ public final class AgentExecutor: Sendable {
                                 let step = AgentStep(
                                     stepNumber: thoughtCount,
                                     type: .reflection,
-                                    content: textContent
+                                    content: textContent,
+                                    title: response.title
                                 )
                                 await onStep(step)
 
@@ -329,11 +330,13 @@ public final class AgentExecutor: Sendable {
                                     // Emit/update thought step in real-time
                                     // Truncate thought content at first action keyword to avoid duplication
                                     if let thoughtContent = self.extractReasoning(from: content) {
+                                        let thoughtTitle = self.extractTitle(from: content)
                                         let thoughtStep = AgentStep(
                                             id: streamStepId ?? UUID(),
                                             stepNumber: thoughtNumber,
                                             type: .thought,
-                                            content: thoughtContent
+                                            content: thoughtContent,
+                                            title: thoughtTitle
                                         )
                                         if streamStepId == nil {
                                             streamStepId = thoughtStep.id
@@ -384,11 +387,13 @@ public final class AgentExecutor: Sendable {
                         }
 
                         let thoughtContent = self.extractReasoning(from: content) ?? content
+                        let thoughtTitle = self.extractTitle(from: content)
                         // Always emit thought step for non-streaming mode
                         let thoughtStep = AgentStep(
                             stepNumber: thoughtNumber,
                             type: .thought,
-                            content: thoughtContent
+                            content: thoughtContent,
+                            title: thoughtTitle
                         )
                         await onStep(thoughtStep)
 
@@ -427,6 +432,19 @@ public final class AgentExecutor: Sendable {
         }
 
         return extractReasoningFromPartialJSON(text)
+    }
+
+    private func extractTitle(from text: String) -> String? {
+        if let jsonText = extractJSONObject(from: text[text.startIndex...]),
+           let data = jsonText.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let decision = json["decision"] as? [String: Any]
+            let title = (json["title"] as? String) ?? (decision?["title"] as? String)
+            let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+
+        return extractTitleFromPartialJSON(text)
     }
 
     private func extractReasoningFromPartialJSON(_ text: String) -> String? {
@@ -486,6 +504,65 @@ public final class AgentExecutor: Sendable {
         return result
     }
 
+    private func extractTitleFromPartialJSON(_ text: String) -> String? {
+        guard let keyRange = text.range(of: "\"title\"") else {
+            return nil
+        }
+
+        let afterKey = text[keyRange.upperBound...]
+        guard let colonIndex = afterKey.firstIndex(of: ":") else {
+            return nil
+        }
+
+        var index = afterKey.index(after: colonIndex)
+        while index < afterKey.endIndex, afterKey[index].isWhitespace {
+            index = afterKey.index(after: index)
+        }
+
+        guard index < afterKey.endIndex, afterKey[index] == "\"" else {
+            return nil
+        }
+
+        index = afterKey.index(after: index)
+        var result = ""
+        var escaped = false
+        var current = index
+
+        while current < afterKey.endIndex {
+            let character = afterKey[current]
+            if escaped {
+                switch character {
+                case "n":
+                    result.append("\n")
+                case "t":
+                    result.append("\t")
+                case "r":
+                    result.append("\r")
+                case "\"":
+                    result.append("\"")
+                case "\\":
+                    result.append("\\")
+                default:
+                    result.append(character)
+                }
+                escaped = false
+            } else {
+                if character == "\\" {
+                    escaped = true
+                } else if character == "\"" {
+                    let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return trimmed.isEmpty ? nil : trimmed
+                } else {
+                    result.append(character)
+                }
+            }
+            current = afterKey.index(after: current)
+        }
+
+        let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     /// Parse thought response to determine next directive
     /// Always tries to parse all possible formats based on actual content
     private func parseThoughtResponse(_ text: String) -> ParsedDecision? {
@@ -511,7 +588,8 @@ public final class AgentExecutor: Sendable {
             return nil
         }
 
-        let title = (root["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let titleValue = (root["title"] as? String) ?? (decision["title"] as? String)
+        let title = titleValue?.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedTitle = (title?.isEmpty ?? true) ? nil : title
 
         func makeDecision(_ directive: AgentDirective) -> ParsedDecision {

@@ -13,6 +13,7 @@ public struct AgentStep: Codable, Sendable, Identifiable, Equatable {
     public var stepNumber: Int
     public var type: StepType
     public var content: String
+    public var title: String?
     public var timestamp: Date
 
     public enum StepType: String, Codable, Sendable {
@@ -28,12 +29,14 @@ public struct AgentStep: Codable, Sendable, Identifiable, Equatable {
         stepNumber: Int,
         type: StepType,
         content: String,
+        title: String? = nil,
         timestamp: Date = Date()
     ) {
         self.id = id
         self.stepNumber = stepNumber
         self.type = type
         self.content = content
+        self.title = title
         self.timestamp = timestamp
     }
 }
