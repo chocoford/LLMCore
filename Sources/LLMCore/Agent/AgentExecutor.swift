@@ -126,9 +126,29 @@ public final class AgentExecutor: Sendable {
 
                         // Consume the stream and capture the final accumulated thought
                         var thoughtMessage: ChatMessageContent?
+                        var lastStreamedFinalAnswer: String?
+                        var streamedFinalAnswerId: String?
 
                         for try await chunk in thoughtStream {
                             thoughtMessage = chunk
+
+                            guard canStream, let content = chunk.content else {
+                                continue
+                            }
+
+                            if let answerContent = self.extractFinalAnswerFromPartialJSON(content),
+                               answerContent != lastStreamedFinalAnswer {
+                                lastStreamedFinalAnswer = answerContent
+                                let messageId = streamedFinalAnswerId ?? chunk.id
+                                streamedFinalAnswerId = messageId
+                                continuation.yield(.content(ChatMessageContent(
+                                    id: messageId,
+                                    role: .assistant,
+                                    content: answerContent,
+                                    files: chunk.files ?? [],
+                                    usage: chunk.usage
+                                )))
+                            }
                         }
 
                         guard let finalMessage = thoughtMessage else {
@@ -209,6 +229,7 @@ public final class AgentExecutor: Sendable {
                             case .finalAnswer(let answer):
                                 self.logger.info("Final answer directive after \(thoughtCount) thought(s)")
                                 continuation.yield(.content(ChatMessageContent(
+                                    id: finalMessage.id,
                                     role: .assistant,
                                     content: answer,
                                     files: accumulatedFiles,
@@ -256,6 +277,7 @@ public final class AgentExecutor: Sendable {
                             self.logger.info("No specific action detected after \(thoughtCount) thought(s), treating as final answer")
                             self.logger.debug("Content: \(thoughtContent.prefix(200))")
                             continuation.yield(.content(ChatMessageContent(
+                                id: finalMessage.id,
                                 role: .assistant,
                                 content: thoughtContent,
                                 files: accumulatedFiles,
@@ -448,7 +470,38 @@ public final class AgentExecutor: Sendable {
     }
 
     private func extractReasoningFromPartialJSON(_ text: String) -> String? {
-        guard let keyRange = text.range(of: "\"reasoning\"") else {
+        extractStringValueFromPartialJSON(text[text.startIndex...], key: "\"reasoning\"")
+    }
+
+    private func extractTitleFromPartialJSON(_ text: String) -> String? {
+        guard let rawTitle = extractStringValueFromPartialJSON(text[text.startIndex...], key: "\"title\"") else {
+            return nil
+        }
+
+        let trimmed = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func extractFinalAnswerFromPartialJSON(_ text: String) -> String? {
+        guard let decisionRange = text.range(of: "\"decision\"") else {
+            return nil
+        }
+
+        let decisionText = text[decisionRange.upperBound...]
+        guard let typeValue = extractStringValueFromPartialJSON(decisionText, key: "\"type\"") else {
+            return nil
+        }
+
+        let normalizedType = typeValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalizedType == "final_answer" else {
+            return nil
+        }
+
+        return extractStringValueFromPartialJSON(decisionText, key: "\"content\"")
+    }
+
+    private func extractStringValueFromPartialJSON(_ text: Substring, key: String) -> String? {
+        guard let keyRange = text.range(of: key) else {
             return nil
         }
 
@@ -502,65 +555,6 @@ public final class AgentExecutor: Sendable {
         }
 
         return result
-    }
-
-    private func extractTitleFromPartialJSON(_ text: String) -> String? {
-        guard let keyRange = text.range(of: "\"title\"") else {
-            return nil
-        }
-
-        let afterKey = text[keyRange.upperBound...]
-        guard let colonIndex = afterKey.firstIndex(of: ":") else {
-            return nil
-        }
-
-        var index = afterKey.index(after: colonIndex)
-        while index < afterKey.endIndex, afterKey[index].isWhitespace {
-            index = afterKey.index(after: index)
-        }
-
-        guard index < afterKey.endIndex, afterKey[index] == "\"" else {
-            return nil
-        }
-
-        index = afterKey.index(after: index)
-        var result = ""
-        var escaped = false
-        var current = index
-
-        while current < afterKey.endIndex {
-            let character = afterKey[current]
-            if escaped {
-                switch character {
-                case "n":
-                    result.append("\n")
-                case "t":
-                    result.append("\t")
-                case "r":
-                    result.append("\r")
-                case "\"":
-                    result.append("\"")
-                case "\\":
-                    result.append("\\")
-                default:
-                    result.append(character)
-                }
-                escaped = false
-            } else {
-                if character == "\\" {
-                    escaped = true
-                } else if character == "\"" {
-                    let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return trimmed.isEmpty ? nil : trimmed
-                } else {
-                    result.append(character)
-                }
-            }
-            current = afterKey.index(after: current)
-        }
-
-        let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
     }
 
     /// Parse thought response to determine next directive
