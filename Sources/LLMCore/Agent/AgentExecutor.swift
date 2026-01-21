@@ -440,8 +440,8 @@ public final class AgentExecutor: Sendable {
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             let decision = json["decision"] as? [String: Any]
             let title = (json["title"] as? String) ?? (decision?["title"] as? String)
-            let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? nil : trimmed
+            let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed?.isEmpty == true ? nil : trimmed
         }
 
         return extractTitleFromPartialJSON(text)
