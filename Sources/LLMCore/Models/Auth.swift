@@ -12,18 +12,13 @@ protocol AnonymousableAuthRequest: ContentModel {
 }
 
 public struct AnonAuthRequest: ContentModel {
-    public enum Platform: String, ContentModel {
-        case apple
-        case web
-    }
-    
-    public var platform: Platform
+    public var platform: AppPlatform
     public var bundleID: String
     public var anonID: String
     public var deviceToken: String
     
     public init(
-        platform: Platform,
+        platform: AppPlatform,
         bundleID: String,
         anonID: String,
         deviceToken: String
