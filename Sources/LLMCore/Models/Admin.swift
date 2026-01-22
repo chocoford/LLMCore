@@ -13,6 +13,7 @@ import Foundation
 public enum AppPlatform: String, Codable, Sendable {
     case app
     case web
+    case weixinMiniProgram
 }
 
 // MARK: - Admin Response Models
