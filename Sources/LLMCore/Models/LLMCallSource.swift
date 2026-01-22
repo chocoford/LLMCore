@@ -9,11 +9,8 @@ import Foundation
 
 /// Identifies the source of an LLM call for tracking and analytics
 public enum LLMCallSource: Codable, Sendable, Equatable {
-    /// Call from a mobile App (identified by bundle ID)
-    case app(bundleID: String)
-
-    /// Call from Web (identified by bundle ID)
-    case web(bundleID: String)
+    /// Call from an App (identified by bundle ID and platform)
+    case app(bundleID: String, platform: AppPlatform)
 
     /// Call from a Domain Agent (identified by domain name)
     case domainAgent(domain: String)
@@ -23,10 +20,8 @@ public enum LLMCallSource: Codable, Sendable, Equatable {
 
     public var sourceType: String {
         switch self {
-        case .app:
-            return "app"
-        case .web:
-            return "web"
+        case .app(_, let platform):
+            return platform.rawValue
         case .domainAgent:
             return "domain_agent"
         case .system:
@@ -36,9 +31,7 @@ public enum LLMCallSource: Codable, Sendable, Equatable {
 
     public var sourceIdentifier: String? {
         switch self {
-        case .app(let bundleID):
-            return bundleID
-        case .web(let bundleID):
+        case .app(let bundleID, _):
             return bundleID
         case .domainAgent(let domain):
             return domain
@@ -46,13 +39,29 @@ public enum LLMCallSource: Codable, Sendable, Equatable {
             return nil
         }
     }
+    
+    public var platform: AppPlatform? {
+        switch self {
+        case .app(_, let platform):
+            return platform
+        default:
+            return nil
+        }
+    }
 
     public var description: String {
         switch self {
-        case .app(let bundleID):
-            return "App: \(bundleID)"
-        case .web(let bundleID):
-            return "Web: \(bundleID)"
+        case .app(let bundleID, let platform):
+            let platformName: String
+            switch platform {
+            case .apple:
+                platformName = "Apple App"
+            case .web:
+                platformName = "Web App"
+            case .weixinMiniProgram:
+                platformName = "微信小程序"
+            }
+            return "\(platformName): \(bundleID)"
         case .domainAgent(let domain):
             return "Domain Agent: \(domain)"
         case .system:
@@ -64,6 +73,7 @@ public enum LLMCallSource: Codable, Sendable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case type
         case identifier
+        case platform
     }
 
     public init(from decoder: Decoder) throws {
@@ -71,12 +81,11 @@ public enum LLMCallSource: Codable, Sendable, Equatable {
         let type = try container.decode(String.self, forKey: .type)
 
         switch type {
-        case "app":
+        case "apple", "web", "weixinMiniProgram":
             let bundleID = try container.decode(String.self, forKey: .identifier)
-            self = .app(bundleID: bundleID)
-        case "web":
-            let bundleID = try container.decode(String.self, forKey: .identifier)
-            self = .web(bundleID: bundleID)
+            let platformString = try container.decodeIfPresent(String.self, forKey: .platform) ?? type
+            let platform = AppPlatform(rawValue: platformString) ?? .apple
+            self = .app(bundleID: bundleID, platform: platform)
         case "domain_agent":
             let domain = try container.decode(String.self, forKey: .identifier)
             self = .domainAgent(domain: domain)
@@ -96,6 +105,9 @@ public enum LLMCallSource: Codable, Sendable, Equatable {
         try container.encode(sourceType, forKey: .type)
         if let identifier = sourceIdentifier {
             try container.encode(identifier, forKey: .identifier)
+        }
+        if let platform = platform {
+            try container.encode(platform.rawValue, forKey: .platform)
         }
     }
 }

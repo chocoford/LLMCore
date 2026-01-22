@@ -11,7 +11,7 @@ import Foundation
 // MARK: - Enums
 
 public enum AppPlatform: String, Codable, Sendable {
-    case app
+    case apple
     case web
     case weixinMiniProgram
 }
