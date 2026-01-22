@@ -321,6 +321,7 @@ public final class AgentExecutor: Sendable {
                         var accumulatedMessage: ChatMessageContent?
                         var streamStepId: UUID? = nil
                         var creditsResult: CreditsResult?
+                        var shouldEmitThoughtStep = true
 
                         for try await result in responseStream {
                             switch result {
@@ -349,9 +350,10 @@ public final class AgentExecutor: Sendable {
 
                                     guard let message = accumulatedMessage, let content = message.content else { continue }
 
-                                    // Emit/update thought step in real-time
-                                    // Truncate thought content at first action keyword to avoid duplication
-                                    if let thoughtContent = self.extractReasoning(from: content) {
+                                    let decisionType = self.extractDecisionTypeFromPartialJSON(content)
+
+                                    if shouldEmitThoughtStep,
+                                       let thoughtContent = self.extractReasoning(from: content) {
                                         let thoughtTitle = self.extractTitle(from: content)
                                         let thoughtStep = AgentStep(
                                             id: streamStepId ?? UUID(),
@@ -364,6 +366,11 @@ public final class AgentExecutor: Sendable {
                                             streamStepId = thoughtStep.id
                                         }
                                         await onStep(thoughtStep)
+                                    }
+
+                                    if shouldEmitThoughtStep,
+                                       decisionType == "final_answer" {
+                                        shouldEmitThoughtStep = false
                                     }
 
                                     // Yield the accumulated message
@@ -498,6 +505,20 @@ public final class AgentExecutor: Sendable {
         }
 
         return extractStringValueFromPartialJSON(decisionText, key: "\"content\"")
+    }
+
+    private func extractDecisionTypeFromPartialJSON(_ text: String) -> String? {
+        guard let decisionRange = text.range(of: "\"decision\"") else {
+            return nil
+        }
+
+        let decisionText = text[decisionRange.upperBound...]
+        guard let typeValue = extractStringValueFromPartialJSON(decisionText, key: "\"type\"") else {
+            return nil
+        }
+
+        let trimmed = typeValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func extractStringValueFromPartialJSON(_ text: Substring, key: String) -> String? {

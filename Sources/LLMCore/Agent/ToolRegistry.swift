@@ -75,11 +75,14 @@ public actor ToolRegistry {
 
         \(toolsDesc)
 
-        To use a tool, respond with:
-        Action: <tool_name>
-        Input: <json_input>
+        To use a tool, set the decision to:
+        {
+          "type": "action",
+          "tool": "<tool_name>",
+          "input": <json_input>
+        }
 
-        Tips: The Input value must be valid JSON.
+        Tips: The input value must be valid JSON and follow the parameters schema.
         """
     }
 }

@@ -52,6 +52,19 @@ public struct IAPAuthRequest: ContentModel {
     }
 }
 
+public struct WeixinMiniProgramAuthRequest: ContentModel {
+    public var bundleID: String
+    public var token: String
+
+    public init(
+        bundleID: String,
+        token: String
+    ) {
+        self.bundleID = bundleID
+        self.token = token
+    }
+}
+
 public struct AuthResponse: ContentModel {
     public var token: String
     
