@@ -71,6 +71,52 @@ public struct ChatMessageContent: ContentModel, Identifiable {
                     return nil
             }
         }
+        
+        // MARK: - Codable
+        
+        private enum CodingKeys: String, CodingKey {
+            case type
+            case data
+        }
+        
+        private enum FileType: String, Codable {
+            case base64EncodedImage
+            case image
+        }
+        
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let type = try container.decode(FileType.self, forKey: .type)
+            
+            switch type {
+            case .base64EncodedImage:
+                let data = try container.decode(String.self, forKey: .data)
+                self = .base64EncodedImage(data)
+            case .image:
+                let urlString = try container.decode(String.self, forKey: .data)
+                guard let url = URL(string: urlString) else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: .data,
+                        in: container,
+                        debugDescription: "Invalid URL string: \(urlString)"
+                    )
+                }
+                self = .image(url)
+            }
+        }
+        
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            
+            switch self {
+            case .base64EncodedImage(let data):
+                try container.encode(FileType.base64EncodedImage, forKey: .type)
+                try container.encode(data, forKey: .data)
+            case .image(let url):
+                try container.encode(FileType.image, forKey: .type)
+                try container.encode(url.absoluteString, forKey: .data)
+            }
+        }
     }
 }
 
