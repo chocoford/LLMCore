@@ -47,13 +47,11 @@ public struct Usage: ContentModel {
 }
 
 public struct AskRequest: ContentModel {
-    public var systemPrompt: String?
-    public var userPrompt: String
+    public var prompt: String
     public var model: SupportedModel? // 可选，默认为 gpt4oMini
     
-    public init(systemPrompt: String? = nil, userPrompt: String, model: SupportedModel? = nil) {
-        self.systemPrompt = systemPrompt
-        self.userPrompt = userPrompt
+    public init(prompt: String, model: SupportedModel? = nil) {
+        self.prompt = prompt
         self.model = model
     }
 }
