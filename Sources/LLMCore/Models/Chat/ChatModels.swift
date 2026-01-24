@@ -46,13 +46,21 @@ public struct Usage: ContentModel {
     }
 }
 
-public struct AskRequest: ContentModel {
+public struct AskRequest<T: ContentModel>: ContentModel {
     public var prompt: String
     public var model: SupportedModel? // 可选，默认为 gpt4oMini
-    
-    public init(prompt: String, model: SupportedModel? = nil) {
+    public var metadata: T?
+
+    public init(prompt: String, model: SupportedModel? = nil, metadata: T?) {
         self.prompt = prompt
         self.model = model
+        self.metadata = metadata
+    }
+
+    public init(prompt: String, model: SupportedModel? = nil) where T == EmptyMetadata {
+        self.prompt = prompt
+        self.model = model
+        self.metadata = nil
     }
 }
 
