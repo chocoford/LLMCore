@@ -156,20 +156,26 @@ public struct AppConfigResponse: ContentModel {
     public let bundleId: String
     public let platform: AppPlatform
     public let ascAppId: Int64?
+    public let appSecret: String?
     public let allowAnon: Bool
     public let initialFreeCredits: Double
     public let freeDailyCredits: Double
     public let freeTierRateLimit: Int
+    public let fixedCreditsPerCall: Double?
+    public let creditsPerUsd: Double
 
-    public init(id: UUID, bundleId: String, platform: AppPlatform, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
+    public init(id: UUID, bundleId: String, platform: AppPlatform, ascAppId: Int64?, appSecret: String?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int, fixedCreditsPerCall: Double?, creditsPerUsd: Double) {
         self.id = id
         self.bundleId = bundleId
         self.platform = platform
         self.ascAppId = ascAppId
+        self.appSecret = appSecret
         self.allowAnon = allowAnon
         self.initialFreeCredits = initialFreeCredits
         self.freeDailyCredits = freeDailyCredits
         self.freeTierRateLimit = freeTierRateLimit
+        self.fixedCreditsPerCall = fixedCreditsPerCall
+        self.creditsPerUsd = creditsPerUsd
     }
 }
 
@@ -213,19 +219,25 @@ public struct AppConfigCreateRequest: ContentModel {
     public let bundleId: String
     public let platform: AppPlatform
     public let ascAppId: Int64?
+    public let appSecret: String?
     public let allowAnon: Bool
     public let initialFreeCredits: Double
     public let freeDailyCredits: Double
     public let freeTierRateLimit: Int
+    public let fixedCreditsPerCall: Double?
+    public let creditsPerUsd: Double
 
-    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
+    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, appSecret: String?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int, fixedCreditsPerCall: Double?, creditsPerUsd: Double) {
         self.bundleId = bundleId
         self.platform = platform
         self.ascAppId = ascAppId
+        self.appSecret = appSecret
         self.allowAnon = allowAnon
         self.initialFreeCredits = initialFreeCredits
         self.freeDailyCredits = freeDailyCredits
         self.freeTierRateLimit = freeTierRateLimit
+        self.fixedCreditsPerCall = fixedCreditsPerCall
+        self.creditsPerUsd = creditsPerUsd
     }
 }
 
@@ -233,19 +245,25 @@ public struct AppConfigUpdateRequest: ContentModel {
     public let bundleId: String
     public let platform: AppPlatform
     public let ascAppId: Int64?
+    public let appSecret: String?
     public let allowAnon: Bool
     public let initialFreeCredits: Double
     public let freeDailyCredits: Double
     public let freeTierRateLimit: Int
+    public let fixedCreditsPerCall: Double?
+    public let creditsPerUsd: Double
 
-    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int) {
+    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, appSecret: String?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int, fixedCreditsPerCall: Double?, creditsPerUsd: Double) {
         self.bundleId = bundleId
         self.platform = platform
         self.ascAppId = ascAppId
+        self.appSecret = appSecret
         self.allowAnon = allowAnon
         self.initialFreeCredits = initialFreeCredits
         self.freeDailyCredits = freeDailyCredits
         self.freeTierRateLimit = freeTierRateLimit
+        self.fixedCreditsPerCall = fixedCreditsPerCall
+        self.creditsPerUsd = creditsPerUsd
     }
 }
 
