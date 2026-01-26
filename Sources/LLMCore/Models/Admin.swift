@@ -101,9 +101,9 @@ public struct PromotionResponse: ContentModel {
     public let credits: Double
     public let type: String
     public let startAt: Date
-    public let endAt: Date
+    public let endAt: Date?
 
-    public init(id: UUID, title: String, credits: Double, type: String, startAt: Date, endAt: Date) {
+    public init(id: UUID, title: String, credits: Double, type: String, startAt: Date, endAt: Date?) {
         self.id = id
         self.title = title
         self.credits = credits
@@ -204,9 +204,9 @@ public struct PromotionCreateRequest: ContentModel {
     public let credits: Double
     public let type: String
     public let startAt: Date
-    public let endAt: Date
+    public let endAt: Date?
 
-    public init(title: String, credits: Double, type: String, startAt: Date, endAt: Date) {
+    public init(title: String, credits: Double, type: String, startAt: Date, endAt: Date?) {
         self.title = title
         self.credits = credits
         self.type = type
