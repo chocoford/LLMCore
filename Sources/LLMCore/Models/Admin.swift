@@ -102,14 +102,16 @@ public struct PromotionResponse: ContentModel {
     public let type: String
     public let startAt: Date
     public let endAt: Date?
+    public let appConfigId: UUID?
 
-    public init(id: UUID, title: String, credits: Double, type: String, startAt: Date, endAt: Date?) {
+    public init(id: UUID, title: String, credits: Double, type: String, startAt: Date, endAt: Date?, appConfigId: UUID?) {
         self.id = id
         self.title = title
         self.credits = credits
         self.type = type
         self.startAt = startAt
         self.endAt = endAt
+        self.appConfigId = appConfigId
     }
 }
 
@@ -205,13 +207,15 @@ public struct PromotionCreateRequest: ContentModel {
     public let type: String
     public let startAt: Date
     public let endAt: Date?
+    public let appConfigId: UUID?
 
-    public init(title: String, credits: Double, type: String, startAt: Date, endAt: Date?) {
+    public init(title: String, credits: Double, type: String, startAt: Date, endAt: Date?, appConfigId: UUID?) {
         self.title = title
         self.credits = credits
         self.type = type
         self.startAt = startAt
         self.endAt = endAt
+        self.appConfigId = appConfigId
     }
 }
 
