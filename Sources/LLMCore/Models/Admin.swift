@@ -187,15 +187,66 @@ public struct AppProductConfigResponse: ContentModel {
     public let type: String
     public let credits: Double
     public let subscriptionGroupID: String?
+    public let priceInCents: Int?
     public let appConfigId: UUID
 
-    public init(id: UUID, productId: String, type: String, credits: Double, subscriptionGroupID: String?, appConfigId: UUID) {
+    public init(id: UUID, productId: String, type: String, credits: Double, subscriptionGroupID: String?, priceInCents: Int?, appConfigId: UUID) {
         self.id = id
         self.productId = productId
         self.type = type
         self.credits = credits
         self.subscriptionGroupID = subscriptionGroupID
+        self.priceInCents = priceInCents
         self.appConfigId = appConfigId
+    }
+}
+
+public struct PayOrderResponse: ContentModel {
+    public let id: UUID
+    public let outTradeNo: String
+    public let userIdentityId: UUID
+    public let appConfigId: UUID
+    public let productId: String
+    public let totalAmount: Int
+    public let currency: String
+    public let credits: Double
+    public let provider: PayOrderProvider
+    public let status: PayOrderStatus
+    public let providerTransactionId: String?
+    public let providerData: String?
+    public let createdAt: Date?
+    public let paidAt: Date?
+
+    public init(
+        id: UUID,
+        outTradeNo: String,
+        userIdentityId: UUID,
+        appConfigId: UUID,
+        productId: String,
+        totalAmount: Int,
+        currency: String,
+        credits: Double,
+        provider: PayOrderProvider,
+        status: PayOrderStatus,
+        providerTransactionId: String?,
+        providerData: String?,
+        createdAt: Date?,
+        paidAt: Date?
+    ) {
+        self.id = id
+        self.outTradeNo = outTradeNo
+        self.userIdentityId = userIdentityId
+        self.appConfigId = appConfigId
+        self.productId = productId
+        self.totalAmount = totalAmount
+        self.currency = currency
+        self.credits = credits
+        self.provider = provider
+        self.status = status
+        self.providerTransactionId = providerTransactionId
+        self.providerData = providerData
+        self.createdAt = createdAt
+        self.paidAt = paidAt
     }
 }
 
@@ -276,13 +327,15 @@ public struct AppProductConfigCreateRequest: ContentModel {
     public let type: String
     public let credits: Double
     public let subscriptionGroupID: String?
+    public let priceInCents: Int?
     public let appConfigId: UUID
 
-    public init(productId: String, type: String, credits: Double, subscriptionGroupID: String? = nil, appConfigId: UUID) {
+    public init(productId: String, type: String, credits: Double, subscriptionGroupID: String? = nil, priceInCents: Int? = nil, appConfigId: UUID) {
         self.productId = productId
         self.type = type
         self.credits = credits
         self.subscriptionGroupID = subscriptionGroupID
+        self.priceInCents = priceInCents
         self.appConfigId = appConfigId
     }
 }

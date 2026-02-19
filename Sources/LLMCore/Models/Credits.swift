@@ -143,6 +143,19 @@ public struct CreditsTransaction: ContentModel, Identifiable {
     }
 }
 
+// MARK: - Pay Order
+
+public enum PayOrderProvider: String, ContentModel {
+    case wechatPay
+}
+
+public enum PayOrderStatus: String, ContentModel {
+    case pending
+    case paid
+    case refunded
+    case closed
+}
+
 public enum CreditsTransactionType: String, ContentModel {
     /// 用户直接购买（一次性购买）
     case purchase

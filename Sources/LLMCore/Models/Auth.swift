@@ -93,3 +93,40 @@ public struct CreditAddResponse: ContentModel {
         self.balance = balance
     }
 }
+
+// MARK: - WeChat Pay
+
+public struct WeixinPayCreateOrderRequest: ContentModel {
+    public var productID: String
+
+    public init(productID: String) {
+        self.productID = productID
+    }
+}
+
+public struct WeixinPayCreateOrderResponse: ContentModel {
+    public var outTradeNo: String
+    public var timeStamp: String
+    public var nonceStr: String
+    /// 格式: "prepay_id=xxx"
+    public var package: String
+    /// 固定值 "RSA"
+    public var signType: String
+    public var paySign: String
+
+    public init(
+        outTradeNo: String,
+        timeStamp: String,
+        nonceStr: String,
+        package: String,
+        signType: String,
+        paySign: String
+    ) {
+        self.outTradeNo = outTradeNo
+        self.timeStamp = timeStamp
+        self.nonceStr = nonceStr
+        self.package = package
+        self.signType = signType
+        self.paySign = paySign
+    }
+}
