@@ -98,9 +98,11 @@ public struct CreditAddResponse: ContentModel {
 
 public struct WeixinPayCreateOrderRequest: ContentModel {
     public var productID: String
+    public var quantity: Int
 
-    public init(productID: String) {
+    public init(productID: String, quantity: Int = 1) {
         self.productID = productID
+        self.quantity = quantity
     }
 }
 

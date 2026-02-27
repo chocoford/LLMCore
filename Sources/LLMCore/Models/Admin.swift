@@ -207,6 +207,7 @@ public struct PayOrderResponse: ContentModel {
     public let userIdentityId: UUID
     public let appConfigId: UUID
     public let productId: String
+    public let quantity: Int
     public let totalAmount: Int
     public let currency: String
     public let credits: Double
@@ -223,6 +224,7 @@ public struct PayOrderResponse: ContentModel {
         userIdentityId: UUID,
         appConfigId: UUID,
         productId: String,
+        quantity: Int,
         totalAmount: Int,
         currency: String,
         credits: Double,
@@ -238,6 +240,7 @@ public struct PayOrderResponse: ContentModel {
         self.userIdentityId = userIdentityId
         self.appConfigId = appConfigId
         self.productId = productId
+        self.quantity = quantity
         self.totalAmount = totalAmount
         self.currency = currency
         self.credits = credits
