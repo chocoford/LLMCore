@@ -136,6 +136,14 @@ public struct UserPayOrderResponse: ContentModel {
     }
 }
 
+public struct WeixinPayReportPaymentRequest: ContentModel {
+    public var outTradeNo: String
+
+    public init(outTradeNo: String) {
+        self.outTradeNo = outTradeNo
+    }
+}
+
 public struct WeixinPayCreateOrderRequest: ContentModel {
     public var productID: String
     public var quantity: Int

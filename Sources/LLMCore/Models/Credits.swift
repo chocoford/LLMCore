@@ -151,6 +151,7 @@ public enum PayOrderProvider: String, ContentModel {
 
 public enum PayOrderStatus: String, ContentModel {
     case pending
+    case paidUnverified
     case paid
     case refunded
     case closed
