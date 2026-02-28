@@ -96,6 +96,46 @@ public struct CreditAddResponse: ContentModel {
 
 // MARK: - WeChat Pay
 
+public struct UserPayOrderResponse: ContentModel {
+    public let id: UUID
+    public let outTradeNo: String
+    public let productId: String
+    public let quantity: Int
+    public let totalAmount: Int
+    public let currency: String
+    public let credits: Double
+    public let provider: PayOrderProvider
+    public let status: PayOrderStatus
+    public let createdAt: Date?
+    public let paidAt: Date?
+
+    public init(
+        id: UUID,
+        outTradeNo: String,
+        productId: String,
+        quantity: Int,
+        totalAmount: Int,
+        currency: String,
+        credits: Double,
+        provider: PayOrderProvider,
+        status: PayOrderStatus,
+        createdAt: Date?,
+        paidAt: Date?
+    ) {
+        self.id = id
+        self.outTradeNo = outTradeNo
+        self.productId = productId
+        self.quantity = quantity
+        self.totalAmount = totalAmount
+        self.currency = currency
+        self.credits = credits
+        self.provider = provider
+        self.status = status
+        self.createdAt = createdAt
+        self.paidAt = paidAt
+    }
+}
+
 public struct WeixinPayCreateOrderRequest: ContentModel {
     public var productID: String
     public var quantity: Int
@@ -103,6 +143,18 @@ public struct WeixinPayCreateOrderRequest: ContentModel {
     public init(productID: String, quantity: Int = 1) {
         self.productID = productID
         self.quantity = quantity
+    }
+}
+
+public struct WeixinPayQueryOrderResponse: ContentModel {
+    public var outTradeNo: String
+    public var status: PayOrderStatus
+    public var credits: Double?
+
+    public init(outTradeNo: String, status: PayOrderStatus, credits: Double? = nil) {
+        self.outTradeNo = outTradeNo
+        self.status = status
+        self.credits = credits
     }
 }
 
