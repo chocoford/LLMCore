@@ -145,6 +145,13 @@ public struct CreditsTransaction: ContentModel, Identifiable {
 
 // MARK: - Pay Order
 
+/// 支付提供商。
+///
+/// 与 `UserIdentityProvider` 的认证方式一一对应：
+/// - `wechatPay` ↔ `weixinMiniProgram`（openID 即支付用户标识）
+/// - 未来：`applePay` ↔ `appStore`，`stripe` ↔ Web 认证方式
+///
+/// 不同 provider 的用户通常只使用对应的支付方式，无需跨 provider 映射。
 public enum PayOrderProvider: String, ContentModel {
     case wechatPay
 }
@@ -179,5 +186,11 @@ public enum CreditsTransactionType: String, ContentModel {
     case renewal
     /// 订阅周期结束，周期性 credit 过期清零
     case expiration
+
+    /// 邀请奖励（邀请人或被邀请人通过邀请关系获得的积分）
+    case referral
+
+    /// 成就奖励（用户达成成就条件后领取的积分）
+    case achievement
 }
 
