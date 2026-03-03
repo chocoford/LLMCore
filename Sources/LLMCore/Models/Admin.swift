@@ -253,7 +253,145 @@ public struct PayOrderResponse: ContentModel {
     }
 }
 
+// MARK: - Referral Models
+
+public struct ReferralResponse: ContentModel {
+    public let id: UUID
+    public let inviterIdentityId: UUID
+    public let inviteeIdentityId: UUID?
+    public let inviteCode: String
+    public let usedAt: Date?
+    public let createdAt: Date?
+
+    public init(id: UUID, inviterIdentityId: UUID, inviteeIdentityId: UUID?, inviteCode: String, usedAt: Date?, createdAt: Date?) {
+        self.id = id
+        self.inviterIdentityId = inviterIdentityId
+        self.inviteeIdentityId = inviteeIdentityId
+        self.inviteCode = inviteCode
+        self.usedAt = usedAt
+        self.createdAt = createdAt
+    }
+}
+
+public struct ReferralRewardRuleResponse: ContentModel {
+    public let id: UUID
+    public let title: String
+    public let triggerEvent: String
+    public let inviterCredits: Double?
+    public let inviteeCredits: Double?
+    public let isActive: Bool
+    public let appConfigId: UUID?
+    public let createdAt: Date?
+
+    public init(id: UUID, title: String, triggerEvent: String, inviterCredits: Double?, inviteeCredits: Double?, isActive: Bool, appConfigId: UUID?, createdAt: Date?) {
+        self.id = id
+        self.title = title
+        self.triggerEvent = triggerEvent
+        self.inviterCredits = inviterCredits
+        self.inviteeCredits = inviteeCredits
+        self.isActive = isActive
+        self.appConfigId = appConfigId
+        self.createdAt = createdAt
+    }
+}
+
+public struct ReferralRewardGrantResponse: ContentModel {
+    public let id: UUID
+    public let referralId: UUID
+    public let ruleId: UUID
+    public let beneficiaryIdentityId: UUID
+    public let amount: Double
+    public let grantedAt: Date
+    public let createdAt: Date?
+
+    public init(id: UUID, referralId: UUID, ruleId: UUID, beneficiaryIdentityId: UUID, amount: Double, grantedAt: Date, createdAt: Date?) {
+        self.id = id
+        self.referralId = referralId
+        self.ruleId = ruleId
+        self.beneficiaryIdentityId = beneficiaryIdentityId
+        self.amount = amount
+        self.grantedAt = grantedAt
+        self.createdAt = createdAt
+    }
+}
+
+// MARK: - Achievement Models
+
+public struct AchievementDefinitionResponse: ContentModel {
+    public let id: UUID
+    public let title: String
+    public let description: String?
+    public let condition: String
+    public let credits: Double
+    public let isActive: Bool
+    public let appConfigId: UUID?
+    public let createdAt: Date?
+
+    public init(id: UUID, title: String, description: String?, condition: String, credits: Double, isActive: Bool, appConfigId: UUID?, createdAt: Date?) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.condition = condition
+        self.credits = credits
+        self.isActive = isActive
+        self.appConfigId = appConfigId
+        self.createdAt = createdAt
+    }
+}
+
+public struct AchievementClaimResponse: ContentModel {
+    public let id: UUID
+    public let userIdentityId: UUID
+    public let achievementId: UUID
+    public let claimedAt: Date
+    public let createdAt: Date?
+
+    public init(id: UUID, userIdentityId: UUID, achievementId: UUID, claimedAt: Date, createdAt: Date?) {
+        self.id = id
+        self.userIdentityId = userIdentityId
+        self.achievementId = achievementId
+        self.claimedAt = claimedAt
+        self.createdAt = createdAt
+    }
+}
+
 // MARK: - Admin Request Models
+
+public struct ReferralRewardRuleCreateRequest: ContentModel {
+    public let title: String
+    public let triggerEvent: String
+    public let inviterCredits: Double?
+    public let inviteeCredits: Double?
+    public let isActive: Bool
+    public let appConfigId: UUID?
+
+    public init(title: String, triggerEvent: String, inviterCredits: Double?, inviteeCredits: Double?, isActive: Bool, appConfigId: UUID?) {
+        self.title = title
+        self.triggerEvent = triggerEvent
+        self.inviterCredits = inviterCredits
+        self.inviteeCredits = inviteeCredits
+        self.isActive = isActive
+        self.appConfigId = appConfigId
+    }
+}
+
+public struct AchievementDefinitionCreateRequest: ContentModel {
+    public let title: String
+    public let description: String?
+    public let condition: String
+    public let credits: Double
+    public let isActive: Bool
+    public let appConfigId: UUID?
+
+    public init(title: String, description: String?, condition: String, credits: Double, isActive: Bool, appConfigId: UUID?) {
+        self.title = title
+        self.description = description
+        self.condition = condition
+        self.credits = credits
+        self.isActive = isActive
+        self.appConfigId = appConfigId
+    }
+}
 
 public struct PromotionCreateRequest: ContentModel {
     public let title: String
