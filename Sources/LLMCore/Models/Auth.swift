@@ -16,17 +16,20 @@ public struct AnonAuthRequest: ContentModel {
     public var bundleID: String
     public var anonID: String
     public var deviceToken: String
-    
+    public var inviteCode: String?
+
     public init(
         platform: AppPlatform,
         bundleID: String,
         anonID: String,
-        deviceToken: String
+        deviceToken: String,
+        inviteCode: String? = nil
     ) {
         self.platform = platform
         self.bundleID = bundleID
         self.anonID = anonID
         self.deviceToken = deviceToken
+        self.inviteCode = inviteCode
     }
 }
 
@@ -50,13 +53,16 @@ public struct IAPAuthRequest: ContentModel {
 public struct WeixinMiniProgramAuthRequest: ContentModel {
     public var bundleID: String
     public var code: String
+    public var inviteCode: String?
 
     public init(
         bundleID: String,
-        code: String
+        code: String,
+        inviteCode: String? = nil
     ) {
         self.bundleID = bundleID
         self.code = code
+        self.inviteCode = inviteCode
     }
 }
 
