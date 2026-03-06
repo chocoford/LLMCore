@@ -194,3 +194,42 @@ public enum CreditsTransactionType: String, ContentModel {
     case achievement
 }
 
+// MARK: - Referral (User-facing)
+
+/// 用户的邀请码信息
+public struct MyInviteCodeResponse: ContentModel {
+    public let inviteCode: String
+    public let createdAt: Date?
+
+    public init(inviteCode: String, createdAt: Date?) {
+        self.inviteCode = inviteCode
+        self.createdAt = createdAt
+    }
+}
+
+/// 用户邀请的人的简要信息
+public struct MyReferralItem: ContentModel {
+    public let inviteeRegisteredAt: Date?
+    public let totalRewardsEarned: Double
+
+    public init(inviteeRegisteredAt: Date?, totalRewardsEarned: Double) {
+        self.inviteeRegisteredAt = inviteeRegisteredAt
+        self.totalRewardsEarned = totalRewardsEarned
+    }
+}
+
+/// 用户的邀请总览
+public struct MyReferralSummaryResponse: ContentModel {
+    public let inviteCode: String
+    public let totalInvited: Int
+    public let totalRewardsEarned: Double
+    public let referrals: [MyReferralItem]
+
+    public init(inviteCode: String, totalInvited: Int, totalRewardsEarned: Double, referrals: [MyReferralItem]) {
+        self.inviteCode = inviteCode
+        self.totalInvited = totalInvited
+        self.totalRewardsEarned = totalRewardsEarned
+        self.referrals = referrals
+    }
+}
+
