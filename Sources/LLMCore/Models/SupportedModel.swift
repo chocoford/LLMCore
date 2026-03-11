@@ -31,7 +31,7 @@ public enum SupportedModel: ContentModel {
     // --- Image ---
     case nanoBananaFree
     case nanoBanana
-    case nanoBananaPro
+    case nanoBanana2
     
     // --- Non-OpenRouter Models ---
     case minimaxM2
@@ -52,7 +52,7 @@ public enum SupportedModel: ContentModel {
             case .gemini15Flash: return "gemini-1.5-flash"
             case .nanoBananaFree: return "google/gemini-2.5-flash-image-preview:free"
             case .nanoBanana: return "google/gemini-2.5-flash-image-preview"
-            case .nanoBananaPro: return "google/gemini-3-pro-image-preview"
+            case .nanoBanana2: return "google/gemini-3.1-flash-image-preview"
                 
             case .minimaxM2: return "minimax/minimax-m2"
             case .other(let value): return value
@@ -76,7 +76,7 @@ public enum SupportedModel: ContentModel {
             case "gemini-1.5-flash": self = .gemini15Flash
             case "google/gemini-2.5-flash-image-preview:free": self = .nanoBananaFree
             case "google/gemini-2.5-flash-image-preview": self = .nanoBanana
-            case "google/gemini-3-pro-image-preview": self = .nanoBananaPro
+            case "google/gemini-3.1-flash-image-preview": self = .nanoBanana2
             default: self = .other(rawValue)
         }
     }
@@ -118,7 +118,7 @@ public extension SupportedModel {
             case .gemini15Flash: return "Gemini 1.5 Flash"
             case .nanoBananaFree: return "Nano Banana (Free)"
             case .nanoBanana: return "Nano Banana"
-            case .nanoBananaPro: return "Nano Banana Pro"
+            case .nanoBanana2: return "Nano Banana 2"
                 
             case .minimaxM2: return "Minimax-M2"
                 
@@ -135,7 +135,7 @@ public extension SupportedModel {
                 return "Anthropic"
             case .mistral7b, .mixtral8x7b:
                 return "Mistral"
-            case .gemini15Pro, .gemini15Flash, .nanoBananaFree, .nanoBanana, .nanoBananaPro:
+            case .gemini15Pro, .gemini15Flash, .nanoBananaFree, .nanoBanana, .nanoBanana2:
                 return "Google"
             case .minimaxM2:
                 return "Minimax"
@@ -147,7 +147,7 @@ public extension SupportedModel {
     /// 是否为图像模型
     var isImageModel: Bool {
         switch self {
-            case .nanoBananaFree, .nanoBanana, .nanoBananaPro:
+            case .nanoBananaFree, .nanoBanana, .nanoBanana2:
                 return true
             default:
                 return false
@@ -161,7 +161,7 @@ public extension SupportedModel {
             .claudeHaiku, .claudeSonnet,
             .gemini15Flash, .gemini15Pro,
             .mistral7b, .mixtral8x7b,
-            .nanoBanana, .nanoBananaFree, .nanoBananaPro
+            .nanoBanana, .nanoBananaFree, .nanoBanana2
         ]
     }
     
