@@ -19,12 +19,12 @@ public struct BirthdayDoodleParameters: ContentModel {
     public var title: String
     /// 日期，如"2024.03.25"
     public var date: String
-    /// 涂鸦文字内容（数组，左右分布）
-    public var text: [String]
+    /// 涂鸦文字内容（左右分布）
+    public var text: String
     /// 参考人物图片，data URI 格式（"data:image/jpeg;base64,..."）
     public var referenceImageBase64: String?
 
-    public init(title: String, date: String, text: [String], referenceImageBase64: String? = nil) {
+    public init(title: String, date: String, text: String, referenceImageBase64: String? = nil) {
         self.title = title
         self.date = date
         self.text = text
