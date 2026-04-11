@@ -56,14 +56,15 @@ public struct COSSTSRequest: ContentModel {
 // MARK: - Tencent COS POST Object Presign (小程序直传)
 
 public struct COSPresignRequest: ContentModel {
+    /// 项目标识,作为对象 key 的顶级前缀。服务端会校验是否在白名单中。
+    /// 例如 "birthday-doodle"。每个项目可在 COS 侧独立配置 bucket policy 和生命周期规则。
+    public var project: String
     /// 文件扩展名,小写,不带点。白名单: jpg / jpeg / png
     public var ext: String
-    /// 项目隔离前缀,例如 "birthday-doodle"
-    public var subPath: String?
 
-    public init(ext: String, subPath: String? = nil) {
+    public init(project: String, ext: String) {
+        self.project = project
         self.ext = ext
-        self.subPath = subPath
     }
 }
 
