@@ -51,23 +51,42 @@ public struct WeixinMiniProgramAuthRequest: ContentModel {
     public var bundleID: String
     public var code: String
     public var inviteCode: String?
+    /// 可选:客户端在登录时一并传入用户画像(微信 wx.getUserProfile 获取)。
+    /// 也可以登录后通过单独的接口更新。
+    public var profile: UserIdentityProfile?
 
     public init(
         bundleID: String,
         code: String,
-        inviteCode: String? = nil
+        inviteCode: String? = nil,
+        profile: UserIdentityProfile? = nil
     ) {
         self.bundleID = bundleID
         self.code = code
         self.inviteCode = inviteCode
+        self.profile = profile
     }
 }
 
 public struct AuthResponse: ContentModel {
     public var token: String
-    
+
     public init(token: String) {
         self.token = token
+    }
+}
+
+// MARK: - User Identity Profile
+
+/// 用户画像信息,存储在 UserIdentity 上,作为 JSON 列。
+/// 新增可选字段时只需改这个 struct,不需要 DB migration。
+public struct UserIdentityProfile: ContentModel {
+    public var nickname: String?
+    public var avatarURL: String?
+
+    public init(nickname: String? = nil, avatarURL: String? = nil) {
+        self.nickname = nickname
+        self.avatarURL = avatarURL
     }
 }
 

@@ -34,13 +34,22 @@ public struct UserIdentityResponse: ContentModel {
     public let provider: String
     public let externalId: String
     public let verified: Bool
+    public let profile: UserIdentityProfile?
 
-    public init(id: UUID, userId: UUID?, provider: String, externalId: String, verified: Bool) {
+    public init(
+        id: UUID,
+        userId: UUID?,
+        provider: String,
+        externalId: String,
+        verified: Bool,
+        profile: UserIdentityProfile? = nil
+    ) {
         self.id = id
         self.userId = userId
         self.provider = provider
         self.externalId = externalId
         self.verified = verified
+        self.profile = profile
     }
 }
 
