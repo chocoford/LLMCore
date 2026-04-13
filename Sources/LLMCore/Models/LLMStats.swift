@@ -159,9 +159,32 @@ public struct LLMCallLogResponse: ContentModel {
     public let conversationID: String?
     public let latencyMs: Int?
     public let error: String?
+    public let countryCode: String?
+    public let city: String?
+    public let latitude: Double?
+    public let longitude: Double?
     public let createdAt: Date
 
-    public init(id: UUID, userIdentityID: UUID, sourceType: String, sourceID: String?, model: String, promptTokens: Int, completionTokens: Int, totalTokens: Int, costUSD: Double, creditsUsed: Double?, conversationID: String?, latencyMs: Int?, error: String?, createdAt: Date) {
+    public init(
+        id: UUID,
+        userIdentityID: UUID,
+        sourceType: String,
+        sourceID: String?,
+        model: String,
+        promptTokens: Int,
+        completionTokens: Int,
+        totalTokens: Int,
+        costUSD: Double,
+        creditsUsed: Double?,
+        conversationID: String?,
+        latencyMs: Int?,
+        error: String?,
+        countryCode: String? = nil,
+        city: String? = nil,
+        latitude: Double? = nil,
+        longitude: Double? = nil,
+        createdAt: Date
+    ) {
         self.id = id
         self.userIdentityID = userIdentityID
         self.sourceType = sourceType
@@ -175,6 +198,10 @@ public struct LLMCallLogResponse: ContentModel {
         self.conversationID = conversationID
         self.latencyMs = latencyMs
         self.error = error
+        self.countryCode = countryCode
+        self.city = city
+        self.latitude = latitude
+        self.longitude = longitude
         self.createdAt = createdAt
     }
 }
