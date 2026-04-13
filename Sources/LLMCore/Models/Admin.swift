@@ -304,6 +304,19 @@ public struct ReferralRewardRuleResponse: ContentModel {
     }
 }
 
+/// 补发奖励的结果汇总
+public struct ReferralBackfillReport: ContentModel {
+    /// 扫描了多少条已使用的 Referral
+    public let scannedReferrals: Int
+    /// 本次补发新增了多少条 Grant 记录
+    public let newGrants: Int
+
+    public init(scannedReferrals: Int, newGrants: Int) {
+        self.scannedReferrals = scannedReferrals
+        self.newGrants = newGrants
+    }
+}
+
 public struct ReferralRewardGrantResponse: ContentModel {
     public let id: UUID
     public let referralId: UUID

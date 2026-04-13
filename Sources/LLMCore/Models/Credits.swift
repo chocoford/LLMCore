@@ -218,18 +218,40 @@ public struct MyReferralItem: ContentModel {
     }
 }
 
+/// 我是通过谁的邀请码注册的
+public struct MyInviterInfo: ContentModel {
+    /// 邀请人的邀请码 (展示用,例如 "来自 ABC123 的邀请")
+    public let inviteCode: String
+    /// 我自己的注册时间 (= 邀请码被使用的时间)
+    public let registeredAt: Date?
+
+    public init(inviteCode: String, registeredAt: Date?) {
+        self.inviteCode = inviteCode
+        self.registeredAt = registeredAt
+    }
+}
+
 /// 用户的邀请总览
 public struct MyReferralSummaryResponse: ContentModel {
     public let inviteCode: String
     public let totalInvited: Int
     public let totalRewardsEarned: Double
     public let referrals: [MyReferralItem]
+    /// 我被谁邀请的 (如果我是通过邀请码注册的)
+    public let inviter: MyInviterInfo?
 
-    public init(inviteCode: String, totalInvited: Int, totalRewardsEarned: Double, referrals: [MyReferralItem]) {
+    public init(
+        inviteCode: String,
+        totalInvited: Int,
+        totalRewardsEarned: Double,
+        referrals: [MyReferralItem],
+        inviter: MyInviterInfo? = nil
+    ) {
         self.inviteCode = inviteCode
         self.totalInvited = totalInvited
         self.totalRewardsEarned = totalRewardsEarned
         self.referrals = referrals
+        self.inviter = inviter
     }
 }
 
