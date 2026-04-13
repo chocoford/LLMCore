@@ -7,6 +7,36 @@
 
 import Foundation
 
+// MARK: - LLM Geo Stats (按城市聚合的调用统计)
+
+public struct LLMCallGeoStatsItem: ContentModel {
+    public let countryCode: String?
+    public let city: String?
+    public let latitude: Double
+    public let longitude: Double
+    public let callCount: Int
+
+    public init(countryCode: String?, city: String?, latitude: Double, longitude: Double, callCount: Int) {
+        self.countryCode = countryCode
+        self.city = city
+        self.latitude = latitude
+        self.longitude = longitude
+        self.callCount = callCount
+    }
+}
+
+public struct LLMCallGeoStatsResponse: ContentModel {
+    public let items: [LLMCallGeoStatsItem]
+    public let totalWithGeo: Int
+    public let totalWithoutGeo: Int
+
+    public init(items: [LLMCallGeoStatsItem], totalWithGeo: Int, totalWithoutGeo: Int) {
+        self.items = items
+        self.totalWithGeo = totalWithGeo
+        self.totalWithoutGeo = totalWithoutGeo
+    }
+}
+
 // MARK: - LLM Statistics Response Models
 
 public struct LLMStatsOverviewResponse: ContentModel {
