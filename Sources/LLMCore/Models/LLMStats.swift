@@ -46,12 +46,32 @@ public struct LLMStatsOverviewResponse: ContentModel {
     public let totalCreditsUsed: Double
     public let timeRange: TimeRangeResponse
 
-    public init(totalCalls: Int, totalTokens: Int, totalCostUSD: Double, totalCreditsUsed: Double, timeRange: TimeRangeResponse) {
+    // 上一周期的对照值 (同跨度,紧挨 current 之前)。nil 表示无对比。
+    public let previousTotalCalls: Int?
+    public let previousTotalTokens: Int?
+    public let previousTotalCostUSD: Double?
+    public let previousTotalCreditsUsed: Double?
+
+    public init(
+        totalCalls: Int,
+        totalTokens: Int,
+        totalCostUSD: Double,
+        totalCreditsUsed: Double,
+        timeRange: TimeRangeResponse,
+        previousTotalCalls: Int? = nil,
+        previousTotalTokens: Int? = nil,
+        previousTotalCostUSD: Double? = nil,
+        previousTotalCreditsUsed: Double? = nil
+    ) {
         self.totalCalls = totalCalls
         self.totalTokens = totalTokens
         self.totalCostUSD = totalCostUSD
         self.totalCreditsUsed = totalCreditsUsed
         self.timeRange = timeRange
+        self.previousTotalCalls = previousTotalCalls
+        self.previousTotalTokens = previousTotalTokens
+        self.previousTotalCostUSD = previousTotalCostUSD
+        self.previousTotalCreditsUsed = previousTotalCreditsUsed
     }
 }
 

@@ -18,12 +18,33 @@ public struct BusinessOverviewResponse: ContentModel {
     public let llmCostUSD: Double       // 周期内 LLM 总 cost (我方成本)
     public let timeRange: TimeRangeResponse
 
-    public init(revenueCents: Int, newUsers: Int, activeUsers: Int, llmCostUSD: Double, timeRange: TimeRangeResponse) {
+    // 上一周期的同维度数据 (同样 days 跨度,刚好紧挨在 current 之前)。
+    // 均为可选: 若周期跨度太长超出数据起点,服务端可传 nil,客户端不展示对比。
+    public let previousRevenueCents: Int?
+    public let previousNewUsers: Int?
+    public let previousActiveUsers: Int?
+    public let previousLLMCostUSD: Double?
+
+    public init(
+        revenueCents: Int,
+        newUsers: Int,
+        activeUsers: Int,
+        llmCostUSD: Double,
+        timeRange: TimeRangeResponse,
+        previousRevenueCents: Int? = nil,
+        previousNewUsers: Int? = nil,
+        previousActiveUsers: Int? = nil,
+        previousLLMCostUSD: Double? = nil
+    ) {
         self.revenueCents = revenueCents
         self.newUsers = newUsers
         self.activeUsers = activeUsers
         self.llmCostUSD = llmCostUSD
         self.timeRange = timeRange
+        self.previousRevenueCents = previousRevenueCents
+        self.previousNewUsers = previousNewUsers
+        self.previousActiveUsers = previousActiveUsers
+        self.previousLLMCostUSD = previousLLMCostUSD
     }
 }
 
