@@ -214,3 +214,54 @@ public struct WeixinPayCreateOrderResponse: ContentModel {
         self.paySign = paySign
     }
 }
+
+// MARK: - 微信小程序虚拟支付 2.0 (XPay)
+
+public struct WeixinXPayCreateOrderRequest: ContentModel {
+    public var productID: String
+    public var quantity: Int
+
+    public init(productID: String, quantity: Int = 1) {
+        self.productID = productID
+        self.quantity = quantity
+    }
+}
+
+/// XPay 客户端 wx.requestVirtualPayment 调用所需的参数包。
+///
+/// 客户端拿到后直接组装:
+/// ```js
+/// wx.requestVirtualPayment({
+///   mode: response.mode,
+///   signData: response.signData,
+///   paySig: response.paySig,
+///   signature: response.signature,
+/// })
+/// ```
+public struct WeixinXPayCreateOrderResponse: ContentModel {
+    /// 商户订单号 (= signData.outTradeNo,客户端可单独使用方便后续查询)
+    public var outTradeNo: String
+    /// 客户端 mode 字段,如 "short_series_goods"
+    public var mode: String
+    /// 序列化好的 JSON 字符串,客户端必须原样传给 wx.requestVirtualPayment
+    /// (任何字段顺序变化都会让 paySig 失效)
+    public var signData: String
+    /// hex(HMAC_SHA256(appKey, "/wxa/requestVirtualPayment&" + signData))
+    public var paySig: String
+    /// hex(HMAC_SHA256(sessionKey, signData))
+    public var signature: String
+
+    public init(
+        outTradeNo: String,
+        mode: String,
+        signData: String,
+        paySig: String,
+        signature: String
+    ) {
+        self.outTradeNo = outTradeNo
+        self.mode = mode
+        self.signData = signData
+        self.paySig = paySig
+        self.signature = signature
+    }
+}

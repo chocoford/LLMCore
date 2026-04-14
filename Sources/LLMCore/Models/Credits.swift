@@ -154,6 +154,12 @@ public struct CreditsTransaction: ContentModel, Identifiable {
 /// 不同 provider 的用户通常只使用对应的支付方式，无需跨 provider 映射。
 public enum PayOrderProvider: String, ContentModel {
     case wechatPay
+    /// 微信小程序虚拟支付 2.0 (XPay)。
+    /// 与 wechatPay 的差异：
+    /// - 服务端不预下单,客户端 wx.requestVirtualPayment 触发微信侧建单
+    /// - 走 api.weixin.qq.com/xpay/* 接口而非 api.mch.weixin.qq.com
+    /// - iOS 端会被微信代收 30% 苹果税
+    case wechatVirtualPay
 }
 
 public enum PayOrderStatus: String, ContentModel {
