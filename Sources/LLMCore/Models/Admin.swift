@@ -174,8 +174,12 @@ public struct AppConfigResponse: ContentModel {
     public let freeTierRateLimit: Int
     public let fixedCreditsPerCall: Double?
     public let creditsPerUsd: Double
+    /// 支付商户标识 (weixinMiniProgram → 虚拟支付 offer_id)
+    public let paymentMerchantId: String?
+    /// 支付签名密钥 (weixinMiniProgram → 虚拟支付 AppKey)
+    public let paymentSigningKey: String?
 
-    public init(id: UUID, bundleId: String, platform: AppPlatform, ascAppId: Int64?, appSecret: String?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int, fixedCreditsPerCall: Double?, creditsPerUsd: Double) {
+    public init(id: UUID, bundleId: String, platform: AppPlatform, ascAppId: Int64?, appSecret: String?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int, fixedCreditsPerCall: Double?, creditsPerUsd: Double, paymentMerchantId: String? = nil, paymentSigningKey: String? = nil) {
         self.id = id
         self.bundleId = bundleId
         self.platform = platform
@@ -187,6 +191,8 @@ public struct AppConfigResponse: ContentModel {
         self.freeTierRateLimit = freeTierRateLimit
         self.fixedCreditsPerCall = fixedCreditsPerCall
         self.creditsPerUsd = creditsPerUsd
+        self.paymentMerchantId = paymentMerchantId
+        self.paymentSigningKey = paymentSigningKey
     }
 }
 
@@ -444,8 +450,10 @@ public struct AppConfigCreateRequest: ContentModel {
     public let freeTierRateLimit: Int
     public let fixedCreditsPerCall: Double?
     public let creditsPerUsd: Double
+    public let paymentMerchantId: String?
+    public let paymentSigningKey: String?
 
-    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, appSecret: String?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int, fixedCreditsPerCall: Double?, creditsPerUsd: Double) {
+    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, appSecret: String?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int, fixedCreditsPerCall: Double?, creditsPerUsd: Double, paymentMerchantId: String? = nil, paymentSigningKey: String? = nil) {
         self.bundleId = bundleId
         self.platform = platform
         self.ascAppId = ascAppId
@@ -456,6 +464,8 @@ public struct AppConfigCreateRequest: ContentModel {
         self.freeTierRateLimit = freeTierRateLimit
         self.fixedCreditsPerCall = fixedCreditsPerCall
         self.creditsPerUsd = creditsPerUsd
+        self.paymentMerchantId = paymentMerchantId
+        self.paymentSigningKey = paymentSigningKey
     }
 }
 
@@ -470,8 +480,10 @@ public struct AppConfigUpdateRequest: ContentModel {
     public let freeTierRateLimit: Int
     public let fixedCreditsPerCall: Double?
     public let creditsPerUsd: Double
+    public let paymentMerchantId: String?
+    public let paymentSigningKey: String?
 
-    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, appSecret: String?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int, fixedCreditsPerCall: Double?, creditsPerUsd: Double) {
+    public init(bundleId: String, platform: AppPlatform, ascAppId: Int64?, appSecret: String?, allowAnon: Bool, initialFreeCredits: Double, freeDailyCredits: Double, freeTierRateLimit: Int, fixedCreditsPerCall: Double?, creditsPerUsd: Double, paymentMerchantId: String? = nil, paymentSigningKey: String? = nil) {
         self.bundleId = bundleId
         self.platform = platform
         self.ascAppId = ascAppId
@@ -482,6 +494,8 @@ public struct AppConfigUpdateRequest: ContentModel {
         self.freeTierRateLimit = freeTierRateLimit
         self.fixedCreditsPerCall = fixedCreditsPerCall
         self.creditsPerUsd = creditsPerUsd
+        self.paymentMerchantId = paymentMerchantId
+        self.paymentSigningKey = paymentSigningKey
     }
 }
 
