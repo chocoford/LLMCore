@@ -42,8 +42,10 @@ public struct ChatMessageContent: ContentModel, Identifiable {
 
     public enum Role: String, ContentModel {
         case system
+        case developer
         case user
         case assistant
+        case tool
 
         public var asOpenAIRole: ChatQuery.ChatCompletionMessageParam.Role {
             .init(rawValue: self.rawValue) ?? .user
@@ -164,6 +166,24 @@ extension [ChatMessageContent] {
                         .init(content: .contentParts([
                             .init(text: message.content ?? "")
                         ]))
+                    )
+                case .developer:
+                    messageParam = .developer(
+                        .init(content: .contentParts([
+                            .init(text: message.content ?? "")
+                        ]))
+                    )
+                case .tool:
+                    // NOTE: OpenAI 官方要求 tool message 关联一个 tool_call_id。
+                    // 我们目前没有单独的字段，用 message.id 兜底；
+                    // 若要走 OpenAI 的原生 function-calling，需要在 ChatMessageContent 上新增 toolCallId 字段。
+                    messageParam = .tool(
+                        .init(
+                            content: .contentParts([
+                                .init(text: message.content ?? "")
+                            ]),
+                            toolCallId: message.id
+                        )
                     )
                 case .assistant:
                     if let files = message.files {

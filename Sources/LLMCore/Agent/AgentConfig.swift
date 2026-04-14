@@ -219,7 +219,9 @@ public struct AgentConfig: Codable, Sendable, Equatable {
 
             \(Array(steps).generatePrompt())
 
-            If you already have enough information to respond to the user, choose:
+            Only choose final_answer when you truly cannot make further progress by
+            using an available tool, planning, or reflecting. Prefer taking a concrete
+            step (especially calling a tool) over answering from memory.
 
             {
                 "title": "<short title>",
@@ -229,6 +231,20 @@ public struct AgentConfig: Codable, Sendable, Equatable {
                     "content": "<FINAL_ANSWER>"
                 }
             }
+
+            Rules for choosing final_answer:
+            - Do NOT pick final_answer on the first turn if a tool could verify or
+              produce the answer you are about to give.
+            - Do NOT pick final_answer right after a single action without reading
+              its observation and confirming the observation actually satisfies
+              the user's request. If the action had side effects (create / update /
+              delete / call an API / modify a file), you MUST first see an
+              observation proving success.
+            - If an observation shows an error or unexpected result, do NOT pretend
+              it succeeded — either retry with adjusted input, switch strategy,
+              or explicitly tell the user it failed in final_answer.
+            - If the user's request is multi-step, keep going until every step is
+              observably done.
 
             Rules for Title:
             - Keep it short (3-8 words).
@@ -256,6 +272,8 @@ public struct AgentConfig: Codable, Sendable, Equatable {
             - Never combine multiple decision types.
             - Never answer the user outside Final Answer.
             - Never invent or guess URLs unless they are explicitly provided or required for programming tasks.
+            - When in doubt, prefer taking one more step (action / plan / reflection)
+              over ending the loop prematurely.
             """
     }
     

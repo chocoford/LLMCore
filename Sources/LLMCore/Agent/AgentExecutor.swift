@@ -190,6 +190,8 @@ public final class AgentExecutor: Sendable {
                                     throw AgentError.toolNotFound(toolCall.tool)
                                 }
 
+                                let assistantRecord = "\(thoughtContent)\n\nAction: \(toolCall.tool)\nInput: \(toolCall.input)"
+
                                 do {
                                     let observation = try await tool.execute(
                                         toolCall.input,
@@ -204,9 +206,9 @@ public final class AgentExecutor: Sendable {
                                         onStep: onStep
                                     )
 
-                                    // Add thought and observation to context
-                                    context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
-                                    context.append(ChatMessageContent(role: .system, content: "Observation: \(observation)"))
+                                    // Add thought+action and observation to context
+                                    context.append(ChatMessageContent(role: .assistant, content: assistantRecord))
+                                    context.append(ChatMessageContent(role: .user, content: "Observation: \(observation)"))
 
                                 } catch {
                                     let errorMsg = "Tool execution failed: \(error.localizedDescription)"
@@ -219,9 +221,9 @@ public final class AgentExecutor: Sendable {
                                         onStep: onStep
                                     )
 
-                                    context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
+                                    context.append(ChatMessageContent(role: .assistant, content: assistantRecord))
                                     // Add error to context
-                                    context.append(ChatMessageContent(role: .system, content: errorMsg))
+                                    context.append(ChatMessageContent(role: .user, content: errorMsg))
                                 }
 
                                 continue
