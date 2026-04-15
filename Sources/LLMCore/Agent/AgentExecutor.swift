@@ -190,7 +190,10 @@ public final class AgentExecutor: Sendable {
                                     throw AgentError.toolNotFound(toolCall.tool)
                                 }
 
-                                let assistantRecord = "\(thoughtContent)\n\nAction: \(toolCall.tool)\nInput: \(toolCall.input)"
+                                // Store the model's raw decision JSON so that on the next
+                                // turn the model sees its previous output in the exact same
+                                // protocol it is expected to produce — preventing format drift.
+                                let assistantRecord = rawContent
 
                                 do {
                                     let observation = try await tool.execute(
@@ -251,9 +254,8 @@ public final class AgentExecutor: Sendable {
                                 )
                                 await onStep(step)
 
-                                // Add thought and step to context
-                                context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
-                                context.append(ChatMessageContent(role: .assistant, content: "Plan: \(textContent)"))
+                                // Store the raw decision JSON to keep the protocol consistent.
+                                context.append(ChatMessageContent(role: .assistant, content: rawContent))
 
                                 continue
 
@@ -268,9 +270,8 @@ public final class AgentExecutor: Sendable {
                                 )
                                 await onStep(step)
 
-                                // Add thought and step to context
-                                context.append(ChatMessageContent(role: .assistant, content: thoughtContent))
-                                context.append(ChatMessageContent(role: .assistant, content: "Reflection: \(textContent)"))
+                                // Store the raw decision JSON to keep the protocol consistent.
+                                context.append(ChatMessageContent(role: .assistant, content: rawContent))
 
                                 continue
                             }

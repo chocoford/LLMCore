@@ -210,7 +210,14 @@ public struct AgentConfig: Codable, Sendable, Equatable {
               "decision": <DECISION>
             }
             
-            After each decision, the system may call you again with updated context.
+            After each decision, the system may call you again with updated context
+            (for example a user message starting with "Observation:" which is the
+            result of your previous action). On every turn — including turns that
+            follow an observation — your entire response MUST still be a single
+            JSON object in the exact format above. Never reply in free-form text,
+            never write "Action:" / "Input:" as plain text, never answer the user
+            outside a final_answer decision.
+
             Do not assume this is your final turn unless you explicitly choose Final Answer.
 
             ## Decisions
