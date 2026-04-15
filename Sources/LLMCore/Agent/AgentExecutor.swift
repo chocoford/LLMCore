@@ -167,7 +167,7 @@ public final class AgentExecutor: Sendable {
                         let thoughtContent = self.extractReasoning(from: rawContent) ?? rawContent
 
                         // Step 2: Parse the thought response
-                        self.logger.debug("Thought content (first 200 chars): \(rawContent.prefix(200))")
+                        self.logger.debug("Thought content: \(rawContent)")
                         let response = self.parseThoughtResponse(rawContent)
 
                         // Step 3: Handle the directive
