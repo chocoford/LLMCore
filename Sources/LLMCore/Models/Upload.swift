@@ -69,18 +69,37 @@ public struct COSPresignRequest: ContentModel {
     /// 仅当 `lifecycle == .persistent` 时必填,用于把同一项目下不同语义的持久化数据分组。
     /// 例: "avatar", "artwork"。字符集 `[a-z0-9-]`, 1~32 字符。服务端不白名单只校验格式。
     public var category: String?
+    /// 用户范围下的子目录分桶策略。不传则按 lifecycle 取默认值:
+    /// - `ephemeral` 默认 `.month` (大量临时文件按月分桶,COS list 友好)
+    /// - `persistent` 默认 `.none` (头像 / 作品这类小量数据,直接平铺)
+    /// 想覆盖默认值时显式传(例如 persistent 但量很大的笔记附件可传 `.month`)。
+    public var partition: COSPathPartition?
 
-    public init(project: String, ext: String, lifecycle: COSObjectLifecycle? = nil, category: String? = nil) {
+    public init(
+        project: String,
+        ext: String,
+        lifecycle: COSObjectLifecycle? = nil,
+        category: String? = nil,
+        partition: COSPathPartition? = nil
+    ) {
         self.project = project
         self.ext = ext
         self.lifecycle = lifecycle
         self.category = category
+        self.partition = partition
     }
 }
 
 public enum COSObjectLifecycle: String, ContentModel {
     case persistent
     case ephemeral
+}
+
+public enum COSPathPartition: String, ContentModel {
+    /// `<uid>/<uuid>.<ext>` — 文件直接放在用户范围下,不分桶
+    case none
+    /// `<uid>/<yyyy>/<MM>/<uuid>.<ext>` — 按月分桶
+    case month
 }
 
 public struct COSPresignFormData: ContentModel {
