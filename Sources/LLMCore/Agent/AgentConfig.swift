@@ -106,7 +106,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         allowedSteps: Set<AgentStepType> = [],
         tools: [String] = [],
         systemPrompt: String? = nil,
-        maxThoughts: Int = 10,
+        maxThoughts: Int = 20,
         temperature: Double = 0.7
     ) {
         self.allowedSteps = allowedSteps
@@ -152,7 +152,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     /// ReAct agent configuration (thought → action with automatic observation)
     public static func react(
         tools: [String],
-        maxThoughts: Int = 10,
+        maxThoughts: Int = 20,
         systemPrompt: String? = nil
     ) -> AgentConfig {
         AgentConfig(
@@ -166,7 +166,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     /// Plan-and-Execute agent configuration
     public static func planAndExecute(
         tools: [String],
-        maxThoughts: Int = 10,
+        maxThoughts: Int = 20,
         systemPrompt: String? = nil
     ) -> AgentConfig {
         AgentConfig(
@@ -180,7 +180,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     /// Reflexion agent configuration (with self-reflection)
     public static func reflexion(
         tools: [String],
-        maxThoughts: Int = 10,
+        maxThoughts: Int = 20,
         systemPrompt: String? = nil
     ) -> AgentConfig {
         AgentConfig(
@@ -281,6 +281,13 @@ public struct AgentConfig: Codable, Sendable, Equatable {
             - Never invent or guess URLs unless they are explicitly provided or required for programming tasks.
             - When in doubt, prefer taking one more step (action / plan / reflection)
               over ending the loop prematurely.
+            - If your last 2 actions produced the same kind of error or the same
+              unhelpful observation, do NOT try the same approach a third time.
+              Either switch strategy, or produce a final_answer explaining the
+              limitation honestly to the user.
+            - If you are approaching your step budget (the system will warn you),
+              stop exploring and produce a final_answer describing what you
+              accomplished, what you tried, and what is still blocking.
             """
     }
     

@@ -106,6 +106,22 @@ public final class AgentExecutor: Sendable {
                         thoughtCount += 1
                         self.logger.debug("Thought \(thoughtCount)/\(agentConfig.maxThoughts)")
 
+                        // Budget notice: warn the model when it's running out of steps
+                        // so it wraps up gracefully with a final_answer instead of
+                        // getting cut off by maxThoughtsReached.
+                        let remaining = agentConfig.maxThoughts - thoughtCount + 1
+                        if remaining <= 3 && thoughtCount > 1 {
+                            let notice = """
+                            Budget notice: \(remaining) turn(s) remaining before the \
+                            loop is forced to stop. If you have not made clear progress \
+                            on the user's request, produce a final_answer now that \
+                            honestly describes what you accomplished, what you tried, \
+                            and what is still blocking. Do not start new exploratory \
+                            actions unless they are strictly necessary to answer.
+                            """
+                            context.append(ChatMessageContent(role: .user, content: notice))
+                        }
+
                         let requestMetadata = ChatRequestMetadata(
                             userInfo: metadata,
                             context: ChatRequestInternalMetadata(
