@@ -61,11 +61,26 @@ public struct COSPresignRequest: ContentModel {
     public var project: String
     /// 文件扩展名,小写,不带点。白名单: jpg / jpeg / png
     public var ext: String
+    /// 对象是否需要持久保留。
+    /// - `.ephemeral`: 参考图 / 中间产物等,COS 侧挂生命周期规则定期清理
+    /// - `.persistent`: 用户资料(头像)或最终作品等,不被清理
+    /// 不传则默认 `.ephemeral`,保持上线前行为不变。
+    public var lifecycle: COSObjectLifecycle?
+    /// 仅当 `lifecycle == .persistent` 时必填,用于把同一项目下不同语义的持久化数据分组。
+    /// 例: "avatar", "artwork"。字符集 `[a-z0-9-]`, 1~32 字符。服务端不白名单只校验格式。
+    public var category: String?
 
-    public init(project: String, ext: String) {
+    public init(project: String, ext: String, lifecycle: COSObjectLifecycle? = nil, category: String? = nil) {
         self.project = project
         self.ext = ext
+        self.lifecycle = lifecycle
+        self.category = category
     }
+}
+
+public enum COSObjectLifecycle: String, ContentModel {
+    case persistent
+    case ephemeral
 }
 
 public struct COSPresignFormData: ContentModel {
