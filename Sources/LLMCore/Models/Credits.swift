@@ -217,10 +217,17 @@ public struct MyInviteCodeResponse: ContentModel {
 public struct MyReferralItem: ContentModel {
     public let inviteeRegisteredAt: Date?
     public let totalRewardsEarned: Double
+    /// 被邀请人的画像 (nickname / avatarURL), 没注册过或没填资料时为 nil
+    public let inviteeProfile: UserIdentityProfile?
 
-    public init(inviteeRegisteredAt: Date?, totalRewardsEarned: Double) {
+    public init(
+        inviteeRegisteredAt: Date?,
+        totalRewardsEarned: Double,
+        inviteeProfile: UserIdentityProfile? = nil
+    ) {
         self.inviteeRegisteredAt = inviteeRegisteredAt
         self.totalRewardsEarned = totalRewardsEarned
+        self.inviteeProfile = inviteeProfile
     }
 }
 
@@ -230,10 +237,17 @@ public struct MyInviterInfo: ContentModel {
     public let inviteCode: String
     /// 我自己的注册时间 (= 邀请码被使用的时间)
     public let registeredAt: Date?
+    /// 邀请人的画像, 没填资料时为 nil
+    public let inviterProfile: UserIdentityProfile?
 
-    public init(inviteCode: String, registeredAt: Date?) {
+    public init(
+        inviteCode: String,
+        registeredAt: Date?,
+        inviterProfile: UserIdentityProfile? = nil
+    ) {
         self.inviteCode = inviteCode
         self.registeredAt = registeredAt
+        self.inviterProfile = inviterProfile
     }
 }
 
