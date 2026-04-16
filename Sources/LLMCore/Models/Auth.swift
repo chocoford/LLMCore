@@ -219,11 +219,31 @@ public struct WeixinPayCreateOrderResponse: ContentModel {
 
 public struct WeixinXPayCreateOrderRequest: ContentModel {
     public var productID: String
-    public var quantity: Int
+    /// 服务端记账用, 客户端不用传, 缺省即 1。
+    /// short_series_goods 一次只能买一件, 想要大包装请定义不同的 productID。
+    public var quantity: Int = 1
 
     public init(productID: String, quantity: Int = 1) {
         self.productID = productID
         self.quantity = quantity
+    }
+
+    // 自定义 decode: quantity 缺省为 1, 老客户端不传也能过
+    private enum CodingKeys: String, CodingKey {
+        case productID
+        case quantity
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.productID = try c.decode(String.self, forKey: .productID)
+        self.quantity = try c.decodeIfPresent(Int.self, forKey: .quantity) ?? 1
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(productID, forKey: .productID)
+        try c.encode(quantity, forKey: .quantity)
     }
 }
 
