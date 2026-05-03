@@ -83,7 +83,8 @@ public final class AgentExecutor: Sendable {
                 model: model,
                 context: contextMessages,
                 stream: canStream,
-                metadata: metadata
+                metadata: metadata,
+                agentID: agentConfig.agentID
             )
         }
 
@@ -137,6 +138,7 @@ public final class AgentExecutor: Sendable {
                             stream: canStream,
                             thoughtNumber: thoughtCount,
                             metadata: requestMetadata,
+                            agentID: agentConfig.agentID,
                             onStep: onStep
                         )
 
@@ -324,6 +326,7 @@ public final class AgentExecutor: Sendable {
         stream: Bool,
         thoughtNumber: Int,
         metadata: Metadata?,
+        agentID: String?,
         onStep: @escaping  (AgentStep) async -> Void
     ) async throws -> AsyncThrowingStream<ChatMessageContent, Error> {
         if stream {
@@ -334,7 +337,8 @@ public final class AgentExecutor: Sendable {
                         let responseStream: AsyncThrowingStream<StreamChatResponse, Error> = try await self.llmProvider.streamChat(
                             model: model,
                             messages: context,
-                            metadata: metadata
+                            metadata: metadata,
+                            agentID: agentID
                         )
 
                         var accumulatedMessage: ChatMessageContent?
@@ -420,7 +424,8 @@ public final class AgentExecutor: Sendable {
                         let result = try await self.llmProvider.chat(
                             model: model,
                             messages: context,
-                            metadata: metadata
+                            metadata: metadata,
+                            agentID: agentID
                         )
 
                         guard let message = result.data else {
@@ -712,7 +717,8 @@ public final class AgentExecutor: Sendable {
         model: SupportedModel,
         context: [ChatMessageContent],
         stream: Bool,
-        metadata: Metadata?
+        metadata: Metadata?,
+        agentID: String?
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         if stream {
             // Streaming mode - convert StreamChatResponse to ChatMessage
@@ -722,7 +728,8 @@ public final class AgentExecutor: Sendable {
                         let responseStream = try await self.llmProvider.streamChat(
                             model: model,
                             messages: context,
-                            metadata: metadata
+                            metadata: metadata,
+                            agentID: agentID
                         )
 
                         var accumulatedMessage: ChatMessageContent?
@@ -777,7 +784,8 @@ public final class AgentExecutor: Sendable {
                         let result = try await self.llmProvider.chat(
                             model: model,
                             messages: context,
-                            metadata: metadata
+                            metadata: metadata,
+                            agentID: agentID
                         )
 
                         guard let message = result.data else {

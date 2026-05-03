@@ -101,21 +101,29 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     
     /// Temperature for LLM sampling
     public var temperature: Double
-    
+
+    /// 关联的服务端 domain agent 标识。
+    /// 设了之后, LLMKit 在每次发 /chat 时会带上这个 agentID,
+    /// 服务端会校验 model + 注入 systemPrompt。
+    /// 客户端不需要在 `systemPrompt` 字段里塞 persona, 那部分服务端处理。
+    public var agentID: String?
+
     public init(
         allowedSteps: Set<AgentStepType> = [],
         tools: [String] = [],
         systemPrompt: String? = nil,
         maxThoughts: Int = 20,
-        temperature: Double = 0.7
+        temperature: Double = 0.7,
+        agentID: String? = nil
     ) {
         self.allowedSteps = allowedSteps
         self.tools = tools
         self.systemPrompt = systemPrompt
         self.maxThoughts = maxThoughts
         self.temperature = temperature
+        self.agentID = agentID
     }
-    
+
     private enum CodingKeys: String, CodingKey {
         case allowedSteps
         case tools
@@ -123,8 +131,9 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         case systemMessage
         case maxThoughts
         case temperature
+        case agentID
     }
-    
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.allowedSteps = try container.decodeIfPresent(Set<AgentStepType>.self, forKey: .allowedSteps) ?? []
@@ -133,8 +142,9 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         ?? container.decodeIfPresent(String.self, forKey: .systemMessage)
         self.maxThoughts = try container.decodeIfPresent(Int.self, forKey: .maxThoughts) ?? 10
         self.temperature = try container.decodeIfPresent(Double.self, forKey: .temperature) ?? 0.7
+        self.agentID = try container.decodeIfPresent(String.self, forKey: .agentID)
     }
-    
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(allowedSteps, forKey: .allowedSteps)
@@ -142,6 +152,7 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         try container.encodeIfPresent(systemPrompt, forKey: .systemPrompt)
         try container.encode(maxThoughts, forKey: .maxThoughts)
         try container.encode(temperature, forKey: .temperature)
+        try container.encodeIfPresent(agentID, forKey: .agentID)
     }
     
     /// Traditional chat configuration (no steps, direct response)
@@ -153,41 +164,47 @@ public struct AgentConfig: Codable, Sendable, Equatable {
     public static func react(
         tools: [String],
         maxThoughts: Int = 20,
-        systemPrompt: String? = nil
+        systemPrompt: String? = nil,
+        agentID: String? = nil
     ) -> AgentConfig {
         AgentConfig(
             allowedSteps: [.action],
             tools: tools,
             systemPrompt: systemPrompt,
-            maxThoughts: maxThoughts
+            maxThoughts: maxThoughts,
+            agentID: agentID
         )
     }
-    
+
     /// Plan-and-Execute agent configuration
     public static func planAndExecute(
         tools: [String],
         maxThoughts: Int = 20,
-        systemPrompt: String? = nil
+        systemPrompt: String? = nil,
+        agentID: String? = nil
     ) -> AgentConfig {
         AgentConfig(
             allowedSteps: [.plan, .action],
             tools: tools,
             systemPrompt: systemPrompt,
-            maxThoughts: maxThoughts
+            maxThoughts: maxThoughts,
+            agentID: agentID
         )
     }
-    
+
     /// Reflexion agent configuration (with self-reflection)
     public static func reflexion(
         tools: [String],
         maxThoughts: Int = 20,
-        systemPrompt: String? = nil
+        systemPrompt: String? = nil,
+        agentID: String? = nil
     ) -> AgentConfig {
         AgentConfig(
             allowedSteps: [.action, .reflection],
             tools: tools,
             systemPrompt: systemPrompt,
-            maxThoughts: maxThoughts
+            maxThoughts: maxThoughts,
+            agentID: agentID
         )
     }
     

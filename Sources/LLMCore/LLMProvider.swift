@@ -47,23 +47,43 @@ public protocol LLMProvider: Sendable {
     /// - Parameters:
     ///   - model: 使用的模型
     ///   - messages: 聊天消息列表
-    ///   - metadata: 元数据（可选）
+    ///   - metadata: 元数据(可选)
+    ///   - agentID: 关联的服务端 domain agent (可选)。客户端跑 agent loop 时透传给服务端,
+    ///              服务端用它注入 systemPrompt + 校验 model 权限。
     /// - Returns: 聊天结果
     func chat<Metadata: Codable & Equatable & Sendable>(
         model: SupportedModel,
         messages: [ChatMessageContent],
-        metadata: Metadata?
+        metadata: Metadata?,
+        agentID: String?
     ) async throws -> APIResponse<ChatMessageContent>
 
     /// 流式聊天
-    /// - Parameters:
-    ///   - model: 使用的模型
-    ///   - messages: 聊天消息列表
-    ///   - metadata: 元数据（可选）
-    /// - Returns: 流式响应
     func streamChat<Metadata: Codable & Equatable & Sendable>(
         model: SupportedModel,
         messages: [ChatMessageContent],
-        metadata: Metadata?
+        metadata: Metadata?,
+        agentID: String?
     ) async throws -> AsyncThrowingStream<StreamChatResponse, Error>
+}
+
+// MARK: - Defaults
+
+extension LLMProvider {
+    /// 老的 3-参数签名兜底, 让现有调用点 (没传 agentID 的) 自动走 agentID = nil。
+    public func chat<Metadata: Codable & Equatable & Sendable>(
+        model: SupportedModel,
+        messages: [ChatMessageContent],
+        metadata: Metadata?
+    ) async throws -> APIResponse<ChatMessageContent> {
+        try await chat(model: model, messages: messages, metadata: metadata, agentID: nil)
+    }
+
+    public func streamChat<Metadata: Codable & Equatable & Sendable>(
+        model: SupportedModel,
+        messages: [ChatMessageContent],
+        metadata: Metadata?
+    ) async throws -> AsyncThrowingStream<StreamChatResponse, Error> {
+        try await streamChat(model: model, messages: messages, metadata: metadata, agentID: nil)
+    }
 }

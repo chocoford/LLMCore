@@ -13,22 +13,30 @@ public struct ChatRequest<T: ContentModel>: ContentModel {
     public var model: SupportedModel
     public var messages: [ChatMessageContent]
     public var metadata: T?
+    /// 可选的领域 agent 标识。传了之后服务端会:
+    ///   1. 校验 model 是否在该 agent 的 allowedModels 内
+    ///   2. 剥掉 messages 里所有 system 消息, 注入服务端持有的 systemPrompt
+    /// 客户端不需要也不应该自己拼 system prompt。
+    public var agentID: String?
 
     public init(
         model: SupportedModel,
         messages: [ChatMessageContent],
-        metadata: T? = nil
+        metadata: T? = nil,
+        agentID: String? = nil
     ) {
         self.model = model
         self.messages = messages
         self.metadata = metadata
+        self.agentID = agentID
     }
 
     public init(
         model: SupportedModel,
         systemPrompt: String?,
         userPrompt: String,
-        metadata: T? = nil
+        metadata: T? = nil,
+        agentID: String? = nil
     ) {
         self.model = model
         var msgs: [ChatMessageContent] = []
@@ -38,6 +46,7 @@ public struct ChatRequest<T: ContentModel>: ContentModel {
         msgs.append(ChatMessageContent(role: .user, content: userPrompt))
         self.messages = msgs
         self.metadata = metadata
+        self.agentID = agentID
     }
 }
 
