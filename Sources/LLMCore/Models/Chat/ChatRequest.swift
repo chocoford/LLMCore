@@ -18,17 +18,23 @@ public struct ChatRequest<T: ContentModel>: ContentModel {
     ///   2. 剥掉 messages 里所有 system 消息, 注入服务端持有的 systemPrompt
     /// 客户端不需要也不应该自己拼 system prompt。
     public var agentID: String?
+    /// 客户端声明的工具列表。服务端拿到后翻译成 OpenAI/Anthropic 的 tools 字段,
+    /// LLM 会原生 tool_use 返回 toolCalls 而不是在 content 里写 JSON。
+    /// nil 或空表示这次调用不带工具(纯 chat)。
+    public var tools: [ToolSchema]?
 
     public init(
         model: SupportedModel,
         messages: [ChatMessageContent],
         metadata: T? = nil,
-        agentID: String? = nil
+        agentID: String? = nil,
+        tools: [ToolSchema]? = nil
     ) {
         self.model = model
         self.messages = messages
         self.metadata = metadata
         self.agentID = agentID
+        self.tools = tools
     }
 
     public init(
@@ -36,7 +42,8 @@ public struct ChatRequest<T: ContentModel>: ContentModel {
         systemPrompt: String?,
         userPrompt: String,
         metadata: T? = nil,
-        agentID: String? = nil
+        agentID: String? = nil,
+        tools: [ToolSchema]? = nil
     ) {
         self.model = model
         var msgs: [ChatMessageContent] = []
@@ -47,6 +54,7 @@ public struct ChatRequest<T: ContentModel>: ContentModel {
         self.messages = msgs
         self.metadata = metadata
         self.agentID = agentID
+        self.tools = tools
     }
 }
 

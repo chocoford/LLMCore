@@ -64,6 +64,7 @@ public final class AgentExecutor: Sendable {
         onStep: @escaping (AgentStep) async -> Void
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         let tools = await toolRegistry.get(agentConfig.tools)
+        let toolSchemas: [ToolSchema] = tools.map { $0.schema }
         let canStream = model.supportsStreaming
 
         logger.info("""
@@ -84,7 +85,8 @@ public final class AgentExecutor: Sendable {
                 context: contextMessages,
                 stream: canStream,
                 metadata: metadata,
-                agentID: agentConfig.agentID
+                agentID: agentConfig.agentID,
+                tools: toolSchemas.isEmpty ? nil : toolSchemas
             )
         }
 
@@ -139,6 +141,7 @@ public final class AgentExecutor: Sendable {
                             thoughtNumber: thoughtCount,
                             metadata: requestMetadata,
                             agentID: agentConfig.agentID,
+                            tools: toolSchemas.isEmpty ? nil : toolSchemas,
                             onStep: onStep
                         )
 
@@ -327,6 +330,7 @@ public final class AgentExecutor: Sendable {
         thoughtNumber: Int,
         metadata: Metadata?,
         agentID: String?,
+        tools: [ToolSchema]?,
         onStep: @escaping  (AgentStep) async -> Void
     ) async throws -> AsyncThrowingStream<ChatMessageContent, Error> {
         if stream {
@@ -338,7 +342,8 @@ public final class AgentExecutor: Sendable {
                             model: model,
                             messages: context,
                             metadata: metadata,
-                            agentID: agentID
+                            agentID: agentID,
+                            tools: tools
                         )
 
                         var accumulatedMessage: ChatMessageContent?
@@ -425,7 +430,8 @@ public final class AgentExecutor: Sendable {
                             model: model,
                             messages: context,
                             metadata: metadata,
-                            agentID: agentID
+                            agentID: agentID,
+                            tools: tools
                         )
 
                         guard let message = result.data else {
@@ -718,7 +724,8 @@ public final class AgentExecutor: Sendable {
         context: [ChatMessageContent],
         stream: Bool,
         metadata: Metadata?,
-        agentID: String?
+        agentID: String?,
+        tools: [ToolSchema]?
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         if stream {
             // Streaming mode - convert StreamChatResponse to ChatMessage
@@ -729,7 +736,8 @@ public final class AgentExecutor: Sendable {
                             model: model,
                             messages: context,
                             metadata: metadata,
-                            agentID: agentID
+                            agentID: agentID,
+                            tools: tools
                         )
 
                         var accumulatedMessage: ChatMessageContent?
@@ -785,7 +793,8 @@ public final class AgentExecutor: Sendable {
                             model: model,
                             messages: context,
                             metadata: metadata,
-                            agentID: agentID
+                            agentID: agentID,
+                            tools: tools
                         )
 
                         guard let message = result.data else {

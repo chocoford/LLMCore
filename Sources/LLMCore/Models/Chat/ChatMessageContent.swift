@@ -17,18 +17,30 @@ public struct ChatMessageContent: ContentModel, Identifiable {
 
     public var usage: CreditsResult?
 
+    /// LLM 决定调用的工具 (assistant 角色消息携带)。
+    /// 一个 assistant 消息可以同时有 content (思考) 和 toolCalls (动作)。
+    public var toolCalls: [ToolCall]?
+
+    /// 当 role == .tool 时填, 表示这条消息是哪一个 tool_call 的结果。
+    /// 跟前一条 assistant 消息里某个 toolCall 的 id 对应。
+    public var toolCallId: String?
+
     public init(
         id: String = UUID().uuidString,
         role: Role,
         content: String? = nil,
         files: [File] = [],
-        usage: CreditsResult? = nil
+        usage: CreditsResult? = nil,
+        toolCalls: [ToolCall]? = nil,
+        toolCallId: String? = nil
     ) {
         self.id = id
         self.role = role
         self.content = content
         self.files = files
         self.usage = usage
+        self.toolCalls = toolCalls
+        self.toolCallId = toolCallId
     }
 
     public init(from decoder: any Decoder) throws {
@@ -38,6 +50,8 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.content = try container.decodeIfPresent(String.self, forKey: .content)
         self.files = try container.decodeIfPresent([ChatMessageContent.File].self, forKey: .files)
         self.usage = try container.decodeIfPresent(CreditsResult.self, forKey: .usage)
+        self.toolCalls = try container.decodeIfPresent([ToolCall].self, forKey: .toolCalls)
+        self.toolCallId = try container.decodeIfPresent(String.self, forKey: .toolCallId)
     }
 
     public enum Role: String, ContentModel {

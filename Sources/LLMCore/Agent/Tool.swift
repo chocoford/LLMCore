@@ -6,9 +6,10 @@
 //
 
 import Foundation
+@preconcurrency import AnyCodable
 
 /// Protocol for tools that agents can use
-public protocol Tool: Sendable {    
+public protocol Tool: Sendable {
     /// Unique name of the tool
     var name: String { get }
 
@@ -28,6 +29,32 @@ public protocol Tool: Sendable {
 public extension Tool {
     func execute(_ input: String) async throws -> String {
         try await execute(input, context: nil)
+    }
+
+    /// 序列化为发给 provider 的 ToolSchema (= function schema)。
+    /// 默认从 `name` / `description` / `parameters` 构造; 个别工具如果有更复杂的 JSON
+    /// Schema (嵌套 object / array / oneOf) 可以重写这个属性返回原始 schema。
+    var schema: ToolSchema {
+        let props: [String: AnyCodable] = parameters.properties.mapValues { prop in
+            var dict: [String: AnyCodable] = [
+                "type": AnyCodable(prop.type),
+                "description": AnyCodable(prop.description),
+            ]
+            if let enums = prop.enum {
+                dict["enum"] = AnyCodable(enums)
+            }
+            return AnyCodable(dict)
+        }
+        let schema: [String: AnyCodable] = [
+            "type": AnyCodable(parameters.type),
+            "properties": AnyCodable(props),
+            "required": AnyCodable(parameters.required),
+        ]
+        return ToolSchema(
+            name: name,
+            description: description,
+            parameters: AnyCodable(schema)
+        )
     }
 }
 
