@@ -188,21 +188,31 @@ extension [ChatMessageContent] {
                         ]))
                     )
                 case .tool:
-                    // NOTE: OpenAI 官方要求 tool message 关联一个 tool_call_id。
-                    // 我们目前没有单独的字段，用 message.id 兜底；
-                    // 若要走 OpenAI 的原生 function-calling，需要在 ChatMessageContent 上新增 toolCallId 字段。
+                    // OpenAI/Anthropic 都要求 tool message 关联到前一条 assistant 消息里某个 tool_call 的 id。
+                    // 用 message.toolCallId (provider 给的真实 id), 退而用 message.id 兜底。
                     messageParam = .tool(
                         .init(
                             content: .contentParts([
                                 .init(text: message.content ?? "")
                             ]),
-                            toolCallId: message.id
+                            toolCallId: message.toolCallId ?? message.id
                         )
                     )
                 case .assistant:
                     if let files = message.files {
                         filesNeedToBring = files
                     }
+
+                    // 把我们 ChatMessageContent.toolCalls (如果有) 翻译成 OpenAI SDK 的 ToolCallParam。
+                    // 这是必须的: Anthropic 校验 tool_result 必须能在前一条 assistant 消息里找到对应的 tool_use,
+                    // 之前我们一直传 nil, 所以多轮 tool 调用直接挂。
+                    let toolCallParams: [ChatQuery.ChatCompletionMessageParam.AssistantMessageParam.ToolCallParam]?
+                        = message.toolCalls?.map { tc in
+                            .init(
+                                id: tc.id,
+                                function: .init(arguments: tc.arguments, name: tc.name)
+                            )
+                        }
 
                     messageParam = .assistant(
                         .init(
@@ -211,7 +221,7 @@ extension [ChatMessageContent] {
                             ]),
                             audio: nil,
                             name: nil,
-                            toolCalls: nil
+                            toolCalls: toolCallParams
                         )
                     )
             }
