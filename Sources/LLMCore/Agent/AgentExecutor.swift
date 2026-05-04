@@ -55,9 +55,16 @@ public final class AgentExecutor: Sendable {
     }
 
     /// Execute agent based on configuration.
-    /// Returns a stream of `ChatMessage` events for the UI:
-    ///   - `.content(ChatMessageContent)` for assistant messages (intermediate reasoning + final answer)
-    ///   - `.agentStep(AgentStep)` is emitted via `onStep` callback (not in this stream) for richer UI
+    ///
+    /// Returns a stream of `ChatMessage` events for the UI. **All** intermediate state goes
+    /// through this stream now; there is no separate step callback. Each event is one of:
+    ///   - `.content(role=.assistant)` — model's reasoning + (optional) toolCalls for this round
+    ///   - `.content(role=.tool, toolCallId)` — observation produced after running a tool
+    ///
+    /// The UI decides how to render based on `ChatMessageContent` fields:
+    ///   - assistant + toolCalls present → text bubble + tool call card
+    ///   - assistant + no toolCalls → final answer
+    ///   - tool → folded result, attached to the matching toolCall
     @MainActor
     public func execute<Metadata: Codable & Equatable & Sendable>(
         conversationID: String,
@@ -65,8 +72,7 @@ public final class AgentExecutor: Sendable {
         contextMessages: [ChatMessageContent],
         model: SupportedModel,
         metadata: Metadata = EmptyMetadata(),
-        invocationContext: (any ChatInvocationContext)? = nil,
-        onStep: @escaping (AgentStep) async -> Void
+        invocationContext: (any ChatInvocationContext)? = nil
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         let tools = await toolRegistry.get(agentConfig.tools)
         let toolSchemas = tools.map { $0.schema }
@@ -82,8 +88,8 @@ public final class AgentExecutor: Sendable {
                     ==== Executing agent end ====
                     """)
 
-        // Direct chat mode: no tools registered, just pass through.
-        if agentConfig.allowedSteps.isEmpty || tools.isEmpty {
+        // No tools registered → straight chat passthrough, no agent loop.
+        if tools.isEmpty {
             logger.info("Direct chat mode (no tools)")
             return try await directChat(
                 model: model,
@@ -100,8 +106,6 @@ public final class AgentExecutor: Sendable {
                 do {
                     var context = contextMessages
                     var thoughtCount = 0
-                    var lastUsage: CreditsResult?
-                    var accumulatedFiles: [ChatMessageContent.File] = []
 
                     while thoughtCount < agentConfig.maxThoughts {
                         thoughtCount += 1
@@ -126,41 +130,27 @@ public final class AgentExecutor: Sendable {
                             )
                         )
 
-                        // Run one LLM round
+                        // Run one LLM round; this yields .content(assistant) chunks along the way.
                         let final = try await self.runOneRound(
                             model: model,
                             context: context,
                             stream: canStream,
-                            thoughtNumber: thoughtCount,
                             metadata: requestMetadata,
                             agentID: agentConfig.agentID,
                             toolSchemas: toolSchemas,
-                            onStep: onStep,
                             continuation: continuation
                         )
 
-                        if let usage = final.usage { lastUsage = usage }
-                        if let files = final.files { accumulatedFiles.append(contentsOf: files) }
-
                         let toolCalls = final.toolCalls ?? []
 
-                        // No tool call → the assistant message is the final answer.
+                        // No tool calls → this assistant message is the final answer; loop ends.
                         if toolCalls.isEmpty {
                             self.logger.info("No tool calls; final answer after \(thoughtCount) thought(s)")
-                            // 流式过程中已经把 content 增量 yield 给 client 了,
-                            // 这里再 yield 一次完整版, 带上 accumulatedFiles 和 lastUsage。
-                            continuation.yield(.content(ChatMessageContent(
-                                id: final.id,
-                                role: .assistant,
-                                content: final.content,
-                                files: accumulatedFiles,
-                                usage: lastUsage
-                            )))
                             continuation.finish()
                             return
                         }
 
-                        // Has tool calls → record the assistant message into context, then execute each.
+                        // Has tool calls → record the assistant decision + execute each tool.
                         context.append(ChatMessageContent(
                             id: final.id,
                             role: .assistant,
@@ -169,13 +159,6 @@ public final class AgentExecutor: Sendable {
                         ))
 
                         for toolCall in toolCalls {
-                            await onStep(AgentStep(
-                                stepNumber: thoughtCount,
-                                type: .action,
-                                content: "\(toolCall.name) \(toolCall.arguments)",
-                                title: toolCall.name
-                            ))
-
                             let observation: String
                             do {
                                 if let tool = tools.first(where: { $0.name == toolCall.name }) {
@@ -193,18 +176,15 @@ public final class AgentExecutor: Sendable {
                                 self.logger.error("\(observation)")
                             }
 
-                            // Tool result message — use .tool role + toolCallId so OpenAI/Anthropic can pair.
-                            context.append(ChatMessageContent(
+                            // Tool result: appended to context (for next LLM round) AND yielded
+                            // to the UI stream so the conversation appears inline.
+                            let toolMessage = ChatMessageContent(
                                 role: .tool,
                                 content: observation,
                                 toolCallId: toolCall.id
-                            ))
-
-                            await onStep(AgentStep(
-                                stepNumber: thoughtCount,
-                                type: .observation,
-                                content: observation
-                            ))
+                            )
+                            context.append(toolMessage)
+                            continuation.yield(.content(toolMessage))
                         }
                     }
 
@@ -219,19 +199,17 @@ public final class AgentExecutor: Sendable {
     // MARK: - Single round helpers
 
     /// Run one LLM round (streaming or not). Returns the final accumulated assistant message.
-    /// During streaming, content chunks are emitted via `continuation.yield(.content(...))`
-    /// and thought steps via `onStep`. Tool-call deltas are accumulated server-side and
-    /// arrive on `final.toolCalls` once the round completes.
+    /// During streaming, accumulated content + toolCalls chunks are continuously yielded
+    /// to the UI via `continuation.yield(.content(...))`. After the loop, the caller decides
+    /// whether to keep going (toolCalls present) or terminate (no toolCalls = final answer).
     @MainActor
     private func runOneRound<Metadata: Codable & Equatable & Sendable>(
         model: SupportedModel,
         context: [ChatMessageContent],
         stream: Bool,
-        thoughtNumber: Int,
         metadata: Metadata?,
         agentID: String?,
         toolSchemas: [ToolSchema],
-        onStep: @escaping (AgentStep) async -> Void,
         continuation: AsyncThrowingStream<ChatMessage, Error>.Continuation
     ) async throws -> ChatMessageContent {
         let toolsArg: [ToolSchema]? = toolSchemas.isEmpty ? nil : toolSchemas
@@ -246,32 +224,12 @@ public final class AgentExecutor: Sendable {
             )
 
             var accumulated: ChatMessageContent?
-            var thoughtStepID: UUID? = nil
-            var streamedContentLength = 0
 
             for try await event in responseStream {
                 switch event {
                 case .message(let chunk):
-                    // Merge into accumulated state. Provider's stream mode usually gives
-                    // already-cumulative content + tool_calls in each chunk, but we also
-                    // tolerate per-delta chunks.
                     let merged = Self.merge(into: accumulated, chunk: chunk)
                     accumulated = merged
-
-                    // Emit thought step from streaming content for UI rendering
-                    if let content = merged.content, content.count > streamedContentLength {
-                        streamedContentLength = content.count
-                        let stepID = thoughtStepID ?? UUID()
-                        thoughtStepID = stepID
-                        await onStep(AgentStep(
-                            id: stepID,
-                            stepNumber: thoughtNumber,
-                            type: .thought,
-                            content: content
-                        ))
-                    }
-
-                    // Yield the assistant message stream to UI
                     continuation.yield(.content(merged))
 
                 case .settlement(let credits):
@@ -297,14 +255,6 @@ public final class AgentExecutor: Sendable {
             )
             guard let message = result.data else {
                 throw AgentError.toolExecutionFailed(result.error?.message ?? "No response from LLM")
-            }
-            // 非流式: 直接发一次 thought + content 给 UI
-            if let content = message.content, !content.isEmpty {
-                await onStep(AgentStep(
-                    stepNumber: thoughtNumber,
-                    type: .thought,
-                    content: content
-                ))
             }
             continuation.yield(.content(message))
             return message

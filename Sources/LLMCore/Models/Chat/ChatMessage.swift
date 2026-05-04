@@ -7,12 +7,16 @@
 
 import Foundation
 
-/// Client-side message representation with UI states
+/// Client-side message representation with UI states.
+///
+/// 历史: 之前还有一个 `.agentStep(AgentStep)` case 用来表达 plan / reflection / action /
+/// observation 等 prompt-based ReAct 步骤。切到 native tool_use 后所有信息都已经在
+/// `ChatMessageContent` 里 (role + content + toolCalls + toolCallId), 不再需要单独的
+/// step type 概念。UI 直接看字段渲染。
 public enum ChatMessage: ContentModel, Identifiable {
     case loading(UUID = UUID())
     case content(ChatMessageContent)
     case error(UUID, String)
-    case agentStep(AgentStep)  // Agent execution step
 
     public var id: String {
         switch self {
@@ -22,8 +26,6 @@ public enum ChatMessage: ContentModel, Identifiable {
                 return content.id
             case .error(let id, _):
                 return id.uuidString
-            case .agentStep(let step):
-                return step.id.uuidString
         }
     }
 
@@ -35,8 +37,6 @@ public enum ChatMessage: ContentModel, Identifiable {
                 chatMessageContent.role
             case .error:
                 nil
-            case .agentStep:
-                .assistant  // Agent steps are assistant's behavior
         }
     }
 
@@ -47,8 +47,6 @@ public enum ChatMessage: ContentModel, Identifiable {
                     content.content
                 case .error(_, let errorMessage):
                     errorMessage
-                case .agentStep(let step):
-                    step.content
                 default:
                     nil
             }
@@ -104,13 +102,8 @@ public enum ChatMessage: ContentModel, Identifiable {
     }
 
     public init(from decoder: any Decoder) throws {
-        // Try decoding as AgentStep first
-        if let step = try? AgentStep(from: decoder) {
-            self = .agentStep(step)
-            return
-        }
-
-        // Fall back to ChatMessageContent for backward compatibility
+        // ChatMessage 持久化时只会 encode 出 ChatMessageContent 形态 (loading/error 不存),
+        // 所以 decode 一律走 .content 路径。
         self = .content(try ChatMessageContent(from: decoder))
     }
 
@@ -118,8 +111,6 @@ public enum ChatMessage: ContentModel, Identifiable {
         switch self {
             case .content(let content):
                 try content.encode(to: encoder)
-            case .agentStep(let step):
-                try step.encode(to: encoder)
             default:
                 // loading and error are not persisted
                 return

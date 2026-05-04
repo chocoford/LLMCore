@@ -54,6 +54,24 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.toolCallId = try container.decodeIfPresent(String.self, forKey: .toolCallId)
     }
 
+    // MARK: - Render hints
+
+    /// 这条 assistant 消息**附带工具调用** —— 是这一轮"边说话边动手", 在 UI 上紧接着会有工具卡片。
+    /// 注意: 这并不意味着 content 是"内部思考"; native tool_use 模型里 content 仍是 user-facing 的话语。
+    public var hasToolCalls: Bool {
+        role == .assistant && (toolCalls?.isEmpty == false)
+    }
+
+    /// 这条 assistant 消息没有任何工具调用, 也就是 agent 这一轮决定收尾, content 即最终回复。
+    public var isFinalAnswer: Bool {
+        role == .assistant && (toolCalls?.isEmpty ?? true) && (content?.isEmpty == false)
+    }
+
+    /// 这条消息是工具执行结果, UI 默认折叠到对应 toolCall 下方。
+    public var isToolResult: Bool {
+        role == .tool
+    }
+
     public enum Role: String, ContentModel {
         case system
         case developer
