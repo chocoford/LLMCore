@@ -65,6 +65,9 @@ public final class AgentExecutor: Sendable {
     ///   - assistant + toolCalls present → text bubble + tool call card
     ///   - assistant + no toolCalls → final answer
     ///   - tool → folded result, attached to the matching toolCall
+    /// - Parameter toolResultTransformer: 可选钩子, 在 tool 执行结果生成的 ChatMessageContent
+    ///   被 append 进 context / yield 给 UI 之前过一遍。典型用途: 客户端把 tool 产出的
+    ///   `.base64EncodedImage` 自动上传到 R2 升级成 `.image(URL)`, 避免大 body 反复发送。
     @MainActor
     public func execute<Metadata: Codable & Equatable & Sendable>(
         conversationID: String,
@@ -72,7 +75,8 @@ public final class AgentExecutor: Sendable {
         contextMessages: [ChatMessageContent],
         model: SupportedModel,
         metadata: Metadata = EmptyMetadata(),
-        invocationContext: (any ChatInvocationContext)? = nil
+        invocationContext: (any ChatInvocationContext)? = nil,
+        toolResultTransformer: (@Sendable (ChatMessageContent) async throws -> ChatMessageContent)? = nil
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         let tools = await toolRegistry.get(agentConfig.tools)
         let toolSchemas = try tools.map { try $0.schema }
@@ -179,12 +183,20 @@ public final class AgentExecutor: Sendable {
                             // Tool result: appended to context (for next LLM round) AND yielded
                             // to the UI stream so the conversation appears inline.
                             // text 走 content; image 走 files (transport 层会按 provider 协议接力)。
-                            let toolMessage = ChatMessageContent(
+                            var toolMessage = ChatMessageContent(
                                 role: .tool,
                                 content: result.textObservation,
                                 files: result.imageFiles,
                                 toolCallId: toolCall.id
                             )
+                            // 让调用方有机会处理 (如自动上传 base64 → R2 URL), 失败时保持原样。
+                            if let transformer = toolResultTransformer {
+                                do {
+                                    toolMessage = try await transformer(toolMessage)
+                                } catch {
+                                    self.logger.warning("toolResultTransformer failed, falling back to raw message: \(error)")
+                                }
+                            }
                             context.append(toolMessage)
                             continuation.yield(.content(toolMessage))
                         }

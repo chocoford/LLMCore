@@ -144,6 +144,8 @@ public enum ToolResult: Sendable {
     }
 
     /// 工具产出的图片, 转成 ChatMessageContent.File 形态由 transport 层接力。
+    /// `.base64EncodedImage` 内部约定是完整 data URI (`data:<mediaType>;base64,<...>`),
+    /// 这样 transport 层 (asOpenAIMessages) 和自动上传层 (LLMR2UploadProvider) 都能直接消费。
     public var imageFiles: [ChatMessageContent.File] {
         guard case .parts(let parts) = self else { return [] }
         return parts.compactMap { part in
@@ -151,10 +153,9 @@ public enum ToolResult: Sendable {
             switch src {
             case .url(let url):
                 return .image(url)
-            case .data(let data, _):
-                // 注: 当前 ChatMessageContent.File.base64EncodedImage 不带 mediaType,
-                // 默认按 image/png 处理。后续如果需要精细化可以扩 File enum。
-                return .base64EncodedImage(data.base64EncodedString())
+            case .data(let data, let mediaType):
+                let dataURI = "data:\(mediaType);base64,\(data.base64EncodedString())"
+                return .base64EncodedImage(dataURI)
             }
         }
     }

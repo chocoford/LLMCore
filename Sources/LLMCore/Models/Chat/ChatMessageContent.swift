@@ -85,6 +85,9 @@ public struct ChatMessageContent: ContentModel, Identifiable {
     }
 
     public enum File: ContentModel, Hashable, CustomStringConvertible {
+        /// 关联值约定是**完整 data URI**, 形如 `data:image/png;base64,<...>`。
+        /// 直接拿这个字符串塞进 OpenAI 的 `image_url` 即可被识别为图像;
+        /// LLMR2UploadProvider 也按这个格式解析 mediaType。
         case base64EncodedImage(String)
         case image(URL)
 
@@ -228,8 +231,8 @@ extension [ChatMessageContent] {
                             switch file {
                             case .image(let url):
                                 return .image(.init(imageUrl: .init(url: url.absoluteString, detail: nil)))
-                            case .base64EncodedImage(let b64):
-                                let dataURI = "data:image/png;base64,\(b64)"
+                            case .base64EncodedImage(let dataURI):
+                                // dataURI 已是完整 `data:<mediaType>;base64,...`, 见 File enum 注释
                                 return .image(.init(imageUrl: .init(url: dataURI, detail: nil)))
                             }
                         }
