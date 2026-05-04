@@ -75,7 +75,7 @@ public final class AgentExecutor: Sendable {
         invocationContext: (any ChatInvocationContext)? = nil
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         let tools = await toolRegistry.get(agentConfig.tools)
-        let toolSchemas = tools.map { $0.schema }
+        let toolSchemas = try tools.map { try $0.schema }
         let canStream = model.supportsStreaming
 
         logger.info("""

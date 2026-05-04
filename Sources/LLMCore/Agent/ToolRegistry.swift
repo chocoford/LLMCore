@@ -62,8 +62,14 @@ public actor ToolRegistry {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let toolsDesc = selectedTools.map { tool in
-            let parametersJSON = (try? encoder.encode(tool.parameters))
-                .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+            let parametersJSON: String = {
+                guard let schema = try? tool.schema,
+                      let data = try? encoder.encode(schema.parameters),
+                      let str = String(data: data, encoding: .utf8) else {
+                    return "{}"
+                }
+                return str
+            }()
             return """
             - \(tool.name): \(tool.description)
               Parameters: \(parametersJSON)
