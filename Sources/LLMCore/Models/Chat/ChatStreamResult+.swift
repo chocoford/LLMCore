@@ -100,7 +100,11 @@ public struct ChatStreamResponse: ContentModel {
         // To make things simpler, we're not going to check the correctnes of payload before trying to decode
         // We're just going to ignore all the errors here by using optional try and fallback to nil `usage`
         self.usage = try? container.decodeIfPresent(ChatResult.CompletionUsage.self, forKey: .usage)
-        self.serviceTier = try container.decodeIfPresent(ServiceTier.self, forKey: .serviceTier)
+        // OpenRouter / 其他 provider 会带 SDK enum 没覆盖的值 (例如 "standard"),
+        // 强 try 会让整条 chunk decode 失败被丢掉, 包括最后那条带 usage 的——直接导致
+        // settlement 永远发不出去。降级 try? 让 serviceTier 解析失败时退化成 nil,
+        // 不影响主流程。
+        self.serviceTier = (try? container.decodeIfPresent(ServiceTier.self, forKey: .serviceTier)) ?? nil
     }
 }
 
