@@ -37,6 +37,7 @@ public enum SupportedModel: ContentModel {
     case nanoBanana2
 
     // --- Non-OpenRouter Models ---
+    case minimaxM2_7
     case minimaxM2_5
     case minimaxM2
 
@@ -61,6 +62,7 @@ public enum SupportedModel: ContentModel {
             case .nanoBananaFree: return "google/gemini-2.5-flash-image-preview:free"
             case .nanoBanana: return "google/gemini-2.5-flash-image-preview"
             case .nanoBanana2: return "google/gemini-3.1-flash-image-preview"
+            case .minimaxM2_7: return "minimax/minimax-m2.7"
             case .minimaxM2_5: return "minimax/minimax-m2.5"
             case .minimaxM2: return "minimax/minimax-m2"
             case .other(let value): return value
@@ -89,6 +91,7 @@ public enum SupportedModel: ContentModel {
             case "google/gemini-2.5-flash-image-preview:free": self = .nanoBananaFree
             case "google/gemini-2.5-flash-image-preview": self = .nanoBanana
             case "google/gemini-3.1-flash-image-preview": self = .nanoBanana2
+            case "minimax/minimax-m2.7": self = .minimaxM2_7
             case "minimax/minimax-m2.5": self = .minimaxM2_5
             case "minimax/minimax-m2": self = .minimaxM2
             default: self = .other(rawValue)
@@ -137,6 +140,7 @@ extension SupportedModel {
             case .nanoBananaFree: return "Nano Banana (Free)"
             case .nanoBanana: return "Nano Banana"
             case .nanoBanana2: return "Nano Banana 2"
+            case .minimaxM2_7: return "Minimax-M2.7" 
             case .minimaxM2_5: return "Minimax-M2.5"
             case .minimaxM2: return "Minimax-M2"
 
@@ -155,7 +159,7 @@ extension SupportedModel {
                 return "Mistral"
             case .gemini15Pro, .gemini15Flash, .nanoBananaFree, .nanoBanana, .nanoBanana2:
                 return "Google"
-            case .minimaxM2_5, .minimaxM2:
+            case .minimaxM2_7, .minimaxM2_5, .minimaxM2:
                 return "Minimax"
             case .other:
                 return "Other"
@@ -178,7 +182,7 @@ extension SupportedModel {
             .claudeHaiku4_5, .claudeOpus4_6, .claudeOpus4_7, .claudeSonnet4_6,
             .gemini15Flash, .gemini15Pro,
             .mistral7b, .mixtral8x7b,
-            .minimaxM2_5, .minimaxM2,
+            .minimaxM2_7, .minimaxM2_5, .minimaxM2,
             .nanoBanana, .nanoBananaFree, .nanoBanana2,
         ]
     }
