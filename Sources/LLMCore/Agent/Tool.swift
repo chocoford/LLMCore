@@ -23,12 +23,12 @@ public protocol Tool: Sendable {
     /// Execute the tool with given input
     /// - Parameter input: JSON string containing the tool input
     /// - Parameter context: Optional invocation context for tool-specific data
-    /// - Returns: Tool execution result as string
-    func execute(_ input: String, context: (any ChatInvocationContext)?) async throws -> String
+    /// - Returns: 工具执行结果, 可以只是文本, 也可以混合 text + image (如截图工具)
+    func execute(_ input: String, context: (any ChatInvocationContext)?) async throws -> ToolResult
 }
 
 public extension Tool {
-    func execute(_ input: String) async throws -> String {
+    func execute(_ input: String) async throws -> ToolResult {
         try await execute(input, context: nil)
     }
 
@@ -102,6 +102,60 @@ public enum ToolInputSchemaError: LocalizedError {
         switch self {
         case .resourceNotFound(let name, let ext, let bundle):
             return "Tool input schema resource '\(name).\(ext)' not found in bundle '\(bundle)'"
+        }
+    }
+}
+
+// MARK: - Tool result
+
+/// 工具执行结果。
+///
+/// - 简单工具用 `.text("...")` 即可
+/// - 截图 / 渲染 类工具用 `.parts([.text("desc"), .image(.data(png, mediaType: "image/png"))])`
+///
+/// 协议适配层会负责把 `.parts` 拆成对应 provider 的格式 (Anthropic 原生 image block /
+/// OpenAI 路径 fallback 到 user multimodal message 接力)。
+public enum ToolResult: Sendable {
+    case text(String)
+    case parts([Part])
+
+    public enum Part: Sendable {
+        case text(String)
+        case image(ImageSource)
+    }
+
+    public enum ImageSource: Sendable {
+        case data(Data, mediaType: String)
+        case url(URL)
+    }
+
+    /// 给 LLM 发回的纯文本部分 (合并所有 .text part); 图片必须靠 imageFiles 单独走。
+    public var textObservation: String {
+        switch self {
+        case .text(let t):
+            return t
+        case .parts(let parts):
+            let texts = parts.compactMap { part -> String? in
+                if case .text(let t) = part { return t }
+                return nil
+            }
+            return texts.joined(separator: "\n")
+        }
+    }
+
+    /// 工具产出的图片, 转成 ChatMessageContent.File 形态由 transport 层接力。
+    public var imageFiles: [ChatMessageContent.File] {
+        guard case .parts(let parts) = self else { return [] }
+        return parts.compactMap { part in
+            guard case .image(let src) = part else { return nil }
+            switch src {
+            case .url(let url):
+                return .image(url)
+            case .data(let data, _):
+                // 注: 当前 ChatMessageContent.File.base64EncodedImage 不带 mediaType,
+                // 默认按 image/png 处理。后续如果需要精细化可以扩 File enum。
+                return .base64EncodedImage(data.base64EncodedString())
+            }
         }
     }
 }

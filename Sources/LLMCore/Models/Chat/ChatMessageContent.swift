@@ -162,7 +162,7 @@ extension [ChatMessageContent] {
 
         for message in self {
 
-            let messageParam: ChatQuery.ChatCompletionMessageParam
+            var messageParam: ChatQuery.ChatCompletionMessageParam
             switch message.role {
                 case .user:
                     messageParam = .user(
@@ -208,6 +208,12 @@ extension [ChatMessageContent] {
                 case .tool:
                     // OpenAI/Anthropic 都要求 tool message 关联到前一条 assistant 消息里某个 tool_call 的 id。
                     // 用 message.toolCallId (provider 给的真实 id), 退而用 message.id 兜底。
+                    //
+                    // tool message 协议限制: OpenAI Swift SDK 当前的 ToolMessageParam.content 是
+                    // TextContent 纯文本, 没法塞 image。所以这里 tool message 只放 text;
+                    // 如果 tool 有产出图片 (message.files 非空), 在它后面追加一条 user role
+                    // multimodal message 接力图片, 让 vision-capable 模型仍能看到。
+                    // 等未来切到 Anthropic 原生 tool_result image block 时只改这一处即可。
                     messageParam = .tool(
                         .init(
                             content: .contentParts([
@@ -216,6 +222,30 @@ extension [ChatMessageContent] {
                             toolCallId: message.toolCallId ?? message.id
                         )
                     )
+
+                    if let files = message.files, !files.isEmpty {
+                        let imageParts = files.compactMap { file -> ChatQuery.ChatCompletionMessageParam.UserMessageParam.Content.ContentPart? in
+                            switch file {
+                            case .image(let url):
+                                return .image(.init(imageUrl: .init(url: url.absoluteString, detail: nil)))
+                            case .base64EncodedImage(let b64):
+                                let dataURI = "data:image/png;base64,\(b64)"
+                                return .image(.init(imageUrl: .init(url: dataURI, detail: nil)))
+                            }
+                        }
+                        if !imageParts.isEmpty {
+                            results.append(messageParam)
+                            messageParam = .user(
+                                .init(
+                                    content: .contentParts(
+                                        [.text(.init(text: "[Above tool call returned the following image(s)]"))]
+                                        + imageParts
+                                    ),
+                                    name: nil
+                                )
+                            )
+                        }
+                    }
                 case .assistant:
                     if let files = message.files {
                         filesNeedToBring = files

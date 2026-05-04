@@ -159,28 +159,30 @@ public final class AgentExecutor: Sendable {
                         ))
 
                         for toolCall in toolCalls {
-                            let observation: String
+                            let result: ToolResult
                             do {
                                 if let tool = tools.first(where: { $0.name == toolCall.name }) {
-                                    observation = try await tool.execute(
+                                    result = try await tool.execute(
                                         toolCall.arguments,
                                         context: invocationContext
                                     )
-                                    self.logger.debug("Tool \(toolCall.name) → \(observation.prefix(100))…")
+                                    self.logger.debug("Tool \(toolCall.name) → \(result.textObservation.prefix(100))… images=\(result.imageFiles.count)")
                                 } else {
-                                    observation = "Error: tool '\(toolCall.name)' not found"
-                                    self.logger.error("\(observation)")
+                                    result = .text("Error: tool '\(toolCall.name)' not found")
+                                    self.logger.error("Tool '\(toolCall.name)' not found")
                                 }
                             } catch {
-                                observation = "Tool execution failed: \(error.localizedDescription)"
-                                self.logger.error("\(observation)")
+                                result = .text("Tool execution failed: \(error.localizedDescription)")
+                                self.logger.error("Tool execution failed: \(error.localizedDescription)")
                             }
 
                             // Tool result: appended to context (for next LLM round) AND yielded
                             // to the UI stream so the conversation appears inline.
+                            // text 走 content; image 走 files (transport 层会按 provider 协议接力)。
                             let toolMessage = ChatMessageContent(
                                 role: .tool,
-                                content: observation,
+                                content: result.textObservation,
+                                files: result.imageFiles,
                                 toolCallId: toolCall.id
                             )
                             context.append(toolMessage)
