@@ -650,7 +650,7 @@ public final class AgentExecutor: Sendable {
             guard let inputText = encodeJSONValue(inputValue) else {
                 return nil
             }
-            return makeDecision(.action(ToolCall(tool: tool, input: inputText)))
+            return makeDecision(.action(LegacyToolCall(tool: tool, input: inputText)))
 
         case "plan":
             guard let content = decision["content"] as? String else {

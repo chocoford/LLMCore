@@ -41,8 +41,10 @@ public struct AgentStep: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
-/// Tool call representation
-public struct ToolCall: Codable, Sendable, Equatable {
+/// Tool call representation (legacy — prompt-based ReAct era).
+/// 等 AgentExecutor 重写完接 native tool_use 后, 这个类型会被删掉,
+/// 由 `LLMCore/Models/Chat/ToolCall.swift` 里的新版 `ToolCall` 取代。
+public struct LegacyToolCall: Codable, Sendable, Equatable {
     public var tool: String
     public var input: String  // JSON string
     public var output: String?

@@ -11,6 +11,6 @@ import Foundation
 public enum AgentDirective: Sendable, Equatable {
     case plan(String)
     case reflection(String)
-    case action(ToolCall)
+    case action(LegacyToolCall)
     case finalAnswer(String)
 }
