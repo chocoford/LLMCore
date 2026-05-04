@@ -208,107 +208,46 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         )
     }
     
-    /// Generate strategy instructions based on allowed steps
-    /// - Returns: Combined instruction text from all allowed steps
+    /// Strategy instructions for the agent loop.
+    ///
+    /// Now that we use **native tool-use** (provider returns structured tool_calls
+    /// instead of stringified JSON), the model no longer needs to be told *how*
+    /// to format its output. This block is just a few high-level behavioral
+    /// reminders. The bulk of the agent's persona/workflow lives in
+    /// `systemPrompt` (or, for client-side agents, server-injected via agentID).
     private func generateStrategyInstructions() -> String {
-        let steps = allowedSteps
-        
+        guard !allowedSteps.isEmpty else { return "" }
         return """
-            Use the instructions below and the tools available to you to assist the user.
+            ## Workflow
 
-            Your job is NOT to answer the user directly.
-            Your job is to decide the NEXT STEP to take in order to eventually answer the user.
+            You are an agent. To finish a task you may call tools across multiple turns.
+            On each turn you can:
+              - reply with plain content (this is your reasoning, shown to the user);
+              - or call one or more tools (the system will run them and feed the results back).
 
-            You must respond in the following JSON format:
-            
-            {
-              "title": "<short title>",
-              "reasoning": "<your explanation for why this decision is made>",
-              "decision": <DECISION>
-            }
-            
-            After each decision, the system may call you again with updated context
-            (for example a user message starting with "Observation:" which is the
-            result of your previous action). On every turn — including turns that
-            follow an observation — your entire response MUST still be a single
-            JSON object in the exact format above. Never reply in free-form text,
-            never write "Action:" / "Input:" as plain text, never answer the user
-            outside a final_answer decision.
+            When you have done enough, simply reply with the final answer in plain content
+            and call no tool. That ends the loop.
 
-            Do not assume this is your final turn unless you explicitly choose Final Answer.
+            ## Behavioral guidance
 
-            ## Decisions
+            - Do not guess values that a tool can verify. Prefer calling a tool over answering from memory.
+            - If a tool errors or returns an unexpected result, do not retry the same call blindly —
+              switch strategy, or surface the failure honestly to the user.
+            - When the request is multi-step, keep going until every step is observably done.
+            - Stay concise. Reasoning content should explain *what you are about to do*, not restate the obvious.
 
-            You must output exactly ONE of the following DICISIONs:
+            ## Tone
 
-            \(Array(steps).generatePrompt())
-
-            Only choose final_answer when you truly cannot make further progress by
-            using an available tool, planning, or reflecting. Prefer taking a concrete
-            step (especially calling a tool) over answering from memory.
-
-            {
-                "title": "<short title>",
-                "reasoning": "<your explanation for why this decision is made>",
-                "decision": {
-                    "type": "final_answer",
-                    "content": "<FINAL_ANSWER>"
-                }
-            }
-
-            Rules for choosing final_answer:
-            - Do NOT pick final_answer on the first turn if a tool could verify or
-              produce the answer you are about to give.
-            - Do NOT pick final_answer right after a single action without reading
-              its observation and confirming the observation actually satisfies
-              the user's request. If the action had side effects (create / update /
-              delete / call an API / modify a file), you MUST first see an
-              observation proving success.
-            - If an observation shows an error or unexpected result, do NOT pretend
-              it succeeded — either retry with adjusted input, switch strategy,
-              or explicitly tell the user it failed in final_answer.
-            - If the user's request is multi-step, keep going until every step is
-              observably done.
-
-            Rules for Title:
-            - Keep it short (3-8 words).
-            - Use the same language as the user's question.
-            - Summarize the user's intent or current task.
-
-            Rules for Final Answer:
-            - This is the ONLY decision that may contain user-visible content.
-            - Respond in the same language as the user's question.
-            - Do NOT include explanations or reasoning here.
-
-            ## Tone and style
-            
-            - Only use emojis if the user explicitly requests it. Avoid using emojis in all communication unless asked.
-            - Your responses should be short and concise. You can use Github-flavored markdown for formatting, and will be rendered in a monospace font using the CommonMark specification.
-
-            ## Professional objectivity
-            
-            Prioritize technical accuracy and truthfulness over validating the user's beliefs. Focus on facts and problem-solving, providing direct, objective technical info without any unnecessary superlatives, praise, or emotional validation. It is best for the user if Claude honestly applies the same rigorous standards to all ideas and disagrees when necessary, even if it may not be what the user wants to hear. Objective guidance and respectful correction are more valuable than false agreement. Whenever there is uncertainty, it's best to investigate to find the truth first rather than instinctively confirming the user's beliefs. Avoid using over-the-top validation or excessive praise when responding to users such as "You're absolutely right" or similar phrases.
-            
-
-            IMPORTANT RULES:
-
-            - Output exactly ONE decision.
-            - Never combine multiple decision types.
-            - Never answer the user outside Final Answer.
-            - Never invent or guess URLs unless they are explicitly provided or required for programming tasks.
-            - When in doubt, prefer taking one more step (action / plan / reflection)
-              over ending the loop prematurely.
-            - If your last 2 actions produced the same kind of error or the same
-              unhelpful observation, do NOT try the same approach a third time.
-              Either switch strategy, or produce a final_answer explaining the
-              limitation honestly to the user.
-            - If you are approaching your step budget (the system will warn you),
-              stop exploring and produce a final_answer describing what you
-              accomplished, what you tried, and what is still blocking.
+            - Only use emojis if the user explicitly requests it.
+            - Reply in the same language as the user's question.
+            - Never invent URLs unless explicitly provided or strictly required.
             """
     }
-    
-    /// Combined prompt for the agent (system prompt + strategy instructions).
+
+    /// Combined prompt for the agent (system prompt + lightweight strategy instructions).
+    /// Resume-style server-side agents still combine these into a single system message.
+    /// Client-side agents (excalidraw-canvas) get systemPrompt injected by server, and
+    /// only the strategy part comes from here.
     public var prompt: String {
         var parts: [String] = []
         if let systemPrompt, !systemPrompt.isEmpty {
