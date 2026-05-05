@@ -106,12 +106,15 @@ public final class AgentExecutor: Sendable {
         }
 
         return AsyncThrowingStream { continuation in
-            Task {
+            let producer = Task {
                 do {
                     var context = contextMessages
                     var thoughtCount = 0
 
                     while thoughtCount < agentConfig.maxThoughts {
+                        // Consumer 端 (LLMStable._sendMessageBody) cancel 时, 这里能感知;
+                        // 即便没 await 也每轮检查一下, 防止 round 之间空转。
+                        try Task.checkCancellation()
                         thoughtCount += 1
                         self.logger.debug("Thought \(thoughtCount)/\(agentConfig.maxThoughts)")
 
@@ -206,6 +209,13 @@ public final class AgentExecutor: Sendable {
                 } catch {
                     continuation.finish(throwing: error)
                 }
+            }
+            // Consumer 释放 stream (LLMStable 那边 for-try-await 退出 / 抛错) 时触发,
+            // cancel producer Task 让 ReAct loop 立刻停, 不再发起下一轮 LLM 调用。
+            // CancellationError 会沿 await 链路到 LLMClient.streamChat → URLSession async →
+            // 客户端 SSE 关闭 → 服务端 onTermination → 关 OpenRouter 连接。
+            continuation.onTermination = { @Sendable _ in
+                producer.cancel()
             }
         }
     }
@@ -329,7 +339,7 @@ public final class AgentExecutor: Sendable {
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         if stream {
             return AsyncThrowingStream { continuation in
-                Task {
+                let producer = Task {
                     do {
                         let responseStream = try await self.llmProvider.streamChat(
                             model: model,
@@ -358,10 +368,13 @@ public final class AgentExecutor: Sendable {
                         continuation.finish(throwing: error)
                     }
                 }
+                continuation.onTermination = { @Sendable _ in
+                    producer.cancel()
+                }
             }
         } else {
             return AsyncThrowingStream { continuation in
-                Task {
+                let producer = Task {
                     do {
                         let result = try await self.llmProvider.chat(
                             model: model,
@@ -378,6 +391,9 @@ public final class AgentExecutor: Sendable {
                     } catch {
                         continuation.finish(throwing: error)
                     }
+                }
+                continuation.onTermination = { @Sendable _ in
+                    producer.cancel()
                 }
             }
         }
