@@ -68,6 +68,8 @@ public final class AgentExecutor: Sendable {
     /// - Parameter toolResultTransformer: 可选钩子, 在 tool 执行结果生成的 ChatMessageContent
     ///   被 append 进 context / yield 给 UI 之前过一遍。典型用途: 客户端把 tool 产出的
     ///   `.base64EncodedImage` 自动上传到 R2 升级成 `.image(URL)`, 避免大 body 反复发送。
+    /// - Parameter toolApprovalHandler: 可选钩子, tool 声明 `requiresApproval` 时执行前先问一遍。
+    ///   nil = 自动 approve (向后兼容, 服务端跑 agent 时保持原来直跑行为)。
     @MainActor
     public func execute<Metadata: Codable & Equatable & Sendable>(
         conversationID: String,
@@ -76,7 +78,8 @@ public final class AgentExecutor: Sendable {
         model: SupportedModel,
         metadata: Metadata = EmptyMetadata(),
         invocationContext: (any ChatInvocationContext)? = nil,
-        toolResultTransformer: (@Sendable (ChatMessageContent) async throws -> ChatMessageContent)? = nil
+        toolResultTransformer: (@Sendable (ChatMessageContent) async throws -> ChatMessageContent)? = nil,
+        toolApprovalHandler: ToolApprovalHandler? = nil
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         let tools = await toolRegistry.get(agentConfig.tools)
         let toolSchemas = try tools.map { try $0.schema }
@@ -110,6 +113,9 @@ public final class AgentExecutor: Sendable {
                 do {
                     var context = contextMessages
                     var thoughtCount = 0
+                    // 本次 conversation 内 "approveAlways" 命中过的 tool 名单, 之后这些工具不再问。
+                    // 仅内存持久化, 不写 UserDefaults; 切会话/重启 app 后重置。
+                    var alreadyApprovedAlways: Set<String> = []
 
                     while thoughtCount < agentConfig.maxThoughts {
                         // Consumer 端 (LLMStable._sendMessageBody) cancel 时, 这里能感知;
@@ -169,6 +175,48 @@ public final class AgentExecutor: Sendable {
                             let result: ToolResult
                             do {
                                 if let tool = tools.first(where: { $0.name == toolCall.name }) {
+                                    // Approval gate: 工具声明 requiresApproval 且 handler 非空时,
+                                    // 在 execute 之前 raise 给客户端等用户决策。
+                                    // approveAlways 命中过的工具直接放行, 不再问。
+                                    let policy = tool.approvalPolicy(input: toolCall.arguments)
+                                    if case .requiresApproval(let toolReason) = policy,
+                                       !alreadyApprovedAlways.contains(tool.name),
+                                       let handler = toolApprovalHandler {
+                                        let request = ToolApprovalRequest(
+                                            toolName: tool.name,
+                                            toolDisplayName: tool.displayName,
+                                            toolDescription: tool.description,
+                                            arguments: toolCall.arguments,
+                                            conversationID: conversationID,
+                                            toolCallID: toolCall.id,
+                                            // 第一阶段: tool 没给 reason 时兜底 hardcode。
+                                            // 后续可以让 LLM 自己生成更具体的 reason。
+                                            reason: toolReason ?? "Need approval to use \(tool.displayName)"
+                                        )
+                                        let decision = await handler(request)
+                                        switch decision {
+                                        case .approve:
+                                            break
+                                        case .approveAlways:
+                                            alreadyApprovedAlways.insert(tool.name)
+                                        case .deny(let denyReason):
+                                            // 拒绝: 不执行 tool, 把拒绝理由作为 observation 喂给 LLM,
+                                            // 让模型下一轮看到用户拒绝, 自然调整策略 (换工具/参数/直接回复)。
+                                            result = .text("User denied execution of '\(tool.name)'. Reason: \(denyReason ?? "user declined")")
+                                            self.logger.info("Tool \(tool.name) denied by user")
+                                            // 让下面的"包成 ChatMessageContent + yield"逻辑统一处理 result
+                                            let toolMessage = ChatMessageContent(
+                                                role: .tool,
+                                                content: result.textObservation,
+                                                files: result.imageFiles,
+                                                toolCallId: toolCall.id
+                                            )
+                                            context.append(toolMessage)
+                                            continuation.yield(.content(toolMessage))
+                                            continue
+                                        }
+                                    }
+
                                     result = try await tool.execute(
                                         toolCall.arguments,
                                         context: invocationContext

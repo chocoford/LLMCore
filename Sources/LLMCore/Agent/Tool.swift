@@ -32,6 +32,10 @@ public extension Tool {
         try await execute(input, context: nil)
     }
 
+    /// UI 展示用的友好名。默认 = `name` (机器名), 工具作者想要更友好的展示就 override。
+    /// LLM 看到的仍然是 `name`, 不影响 tool_calls 的协议层。
+    var displayName: String { name }
+
     /// 序列化为发给 provider 的 ToolSchema (= function schema)。
     /// 通过 `inputSchema.resolve()` 把 enum 各分支统一成 raw JSON Schema (AnyCodable)。
     var schema: ToolSchema {
@@ -43,7 +47,76 @@ public extension Tool {
             )
         }
     }
+
+    // MARK: - Approval
+
+    /// 简便开关: 简单工具直接 override 这个 Bool, 永远要求 approve;
+    /// 需要按 input 动态决定的工具 override `approvalPolicy(input:)` 即可。默认 false (auto)。
+    var alwaysRequiresApproval: Bool { false }
+
+    /// 给定一次 input, 决定是否需要走 approval 流程。
+    /// 默认实现读 `alwaysRequiresApproval`。Tool 作者可以 override 这个返回更精细的策略。
+    func approvalPolicy(input: String) -> ApprovalPolicy {
+        alwaysRequiresApproval ? .requiresApproval(reason: nil) : .autoApprove
+    }
 }
+
+/// Tool 决定本次 input 要不要走 approval。
+public enum ApprovalPolicy: Sendable {
+    case autoApprove
+    /// 需要用户批准。reason 用于 UI 显示, nil 时由 LLMKit 兜底成 "Need approval to use <toolName>"。
+    case requiresApproval(reason: String?)
+}
+
+/// 客户端 ApprovalHandler 拿到的请求载荷。
+/// `Identifiable` 用 `toolCallID` 作 id, 让 SwiftUI 的 `.sheet(item:)` 直接能用。
+public struct ToolApprovalRequest: Sendable, Identifiable {
+    public var id: String { toolCallID }
+
+    /// 机器名 (跟 `Tool.name` 对应), 用于日志、dedupe、注册 approveAlways 等。
+    public let toolName: String
+    /// UI 展示用的友好名 (跟 `Tool.displayName` 对应)。
+    public let toolDisplayName: String
+    public let toolDescription: String
+    /// LLM 给的 raw arguments JSON 字符串, 客户端自己渲染要不要 pretty-print。
+    public let arguments: String
+    public let conversationID: String
+    /// 跟当前正在执行的 toolCall id 对应, 客户端可以用它 dedupe / 关联 UI。
+    public let toolCallID: String
+    /// Tool 自己提供的 reason; nil 时被替换成 "Need approval to use <toolName>"。
+    public let reason: String
+
+    public init(
+        toolName: String,
+        toolDisplayName: String,
+        toolDescription: String,
+        arguments: String,
+        conversationID: String,
+        toolCallID: String,
+        reason: String
+    ) {
+        self.toolName = toolName
+        self.toolDisplayName = toolDisplayName
+        self.toolDescription = toolDescription
+        self.arguments = arguments
+        self.conversationID = conversationID
+        self.toolCallID = toolCallID
+        self.reason = reason
+    }
+}
+
+/// 客户端 ApprovalHandler 返回的决策。
+public enum ToolApprovalDecision: Sendable {
+    /// 单次同意, 下次同名工具仍会询问。
+    case approve
+    /// 本次会话剩余轮次内, 同名工具不再询问 (per-conversation 内存集合)。
+    case approveAlways
+    /// 拒绝。reason 作为 tool result observation 喂回 LLM, 模型下一轮会响应。
+    case deny(reason: String?)
+}
+
+/// 闭包形态的 approval handler。nil 等价于"自动 approve"(向后兼容)。
+public typealias ToolApprovalHandler = @Sendable (ToolApprovalRequest) async -> ToolApprovalDecision
 
 /// Tool 输入参数 schema 的来源。
 ///
