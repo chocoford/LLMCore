@@ -13,12 +13,24 @@ public protocol Tool: Sendable {
     /// Unique name of the tool
     var name: String { get }
 
+    /// UI 展示用的友好名。默认 = `name`。
+    /// **必须在 protocol 里声明**, 否则 `any Tool` 调用走静态分派, 具体类型的 override 被忽略。
+    var displayName: String { get }
+
     /// Description of what the tool does
     var description: String { get }
 
     /// JSON Schema describing the tool's input. 主入口是这个 enum, 不再要求 Swift 平铺结构。
     /// 简单工具用 `.parameters(...)`, 复杂工具用 `.bundleResource(...)` 加载 .json。
     var inputSchema: ToolInputSchema { get }
+
+    /// 简便开关: 永远要求 approval。默认 false。
+    /// **必须在 protocol 里声明**, 否则 override 走不到动态分派。
+    var alwaysRequiresApproval: Bool { get }
+
+    /// 给定一次 input, 决定是否需要走 approval 流程。默认实现读 `alwaysRequiresApproval`。
+    /// **必须在 protocol 里声明**, 否则 override 走不到动态分派。
+    func approvalPolicy(input: String) -> ApprovalPolicy
 
     /// Execute the tool with given input
     /// - Parameter input: JSON string containing the tool input
