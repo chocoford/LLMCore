@@ -25,6 +25,14 @@ public struct ChatMessageContent: ContentModel, Identifiable {
     /// 跟前一条 assistant 消息里某个 toolCall 的 id 对应。
     public var toolCallId: String?
 
+    /// 这条消息已经被某次 compact 操作折叠掉, 发送给 LLM 时跳过 (filter 出 contextMessages)。
+    /// UI 仍然完整显示 (默认折叠 / 灰色样式), 用户可以展开看历史。
+    public var isCompactedOut: Bool
+
+    /// 这条消息是 compact 操作生成的"earlier conversation"摘要。
+    /// 用 role=.user 投递给 LLM, content 带固定前缀; UI 上渲染成"摘要卡"区分于普通用户消息。
+    public var isCompactSummary: Bool
+
     public init(
         id: String = UUID().uuidString,
         role: Role,
@@ -32,7 +40,9 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         files: [File] = [],
         usage: CreditsResult? = nil,
         toolCalls: [ToolCall]? = nil,
-        toolCallId: String? = nil
+        toolCallId: String? = nil,
+        isCompactedOut: Bool = false,
+        isCompactSummary: Bool = false
     ) {
         self.id = id
         self.role = role
@@ -41,6 +51,8 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.usage = usage
         self.toolCalls = toolCalls
         self.toolCallId = toolCallId
+        self.isCompactedOut = isCompactedOut
+        self.isCompactSummary = isCompactSummary
     }
 
     public init(from decoder: any Decoder) throws {
@@ -52,6 +64,8 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.usage = try container.decodeIfPresent(CreditsResult.self, forKey: .usage)
         self.toolCalls = try container.decodeIfPresent([ToolCall].self, forKey: .toolCalls)
         self.toolCallId = try container.decodeIfPresent(String.self, forKey: .toolCallId)
+        self.isCompactedOut = try container.decodeIfPresent(Bool.self, forKey: .isCompactedOut) ?? false
+        self.isCompactSummary = try container.decodeIfPresent(Bool.self, forKey: .isCompactSummary) ?? false
     }
 
     // MARK: - Render hints

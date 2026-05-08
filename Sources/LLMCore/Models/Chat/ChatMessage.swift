@@ -119,6 +119,16 @@ public enum ChatMessage: ContentModel, Identifiable {
 }
 
 extension [ChatMessage] {
+    /// 给 LLM 用的上下文消息: .content 且没被 compact 折叠的。
+    /// system prompt + 当前活跃 summary + 最近 N 条都满足 `!isCompactedOut`, 自然按时间顺序保留。
+    /// 多次 compact 时, 旧的 summary 会被新一轮标 isCompactedOut, 自动从这里 filter 掉。
+    public var contextMessages: [ChatMessageContent] {
+        self.compactMap {
+            guard case .content(let c) = $0, !c.isCompactedOut else { return nil }
+            return c
+        }
+    }
+
     public var contentMessages: [ChatMessageContent] {
         get {
             self.compactMap {
