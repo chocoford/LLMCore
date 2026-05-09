@@ -568,6 +568,8 @@ public struct LogEntryResponse: ContentModel {
     }
 }
 
+extension LogEntryResponse: MetadataCarrying {}
+
 public struct LogHistoryResponse: ContentModel {
     public var logs: [LogEntryResponse]
     public var totalCount: Int

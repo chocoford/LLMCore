@@ -114,34 +114,11 @@ public struct CreditsTransaction: ContentModel, Identifiable {
         self.createdAt = createdAt
         self.metadata = metadata
     }
-    
-    
-    // convenient functions for metadata
-    public func getMetadataValue<T: Codable>(key: String) -> T? {
-        guard let codable = self.metadata?[key] else {
-            return nil
-        }
-        do {
-            let data = try JSONEncoder().encode(codable)
-            return try JSONDecoder().decode(T.self, from: data)
-        } catch {
-            print(error)
-            return nil
-        }
-    }
-
-    public struct DeductionSources: Codable {
-        var permanent: Double?
-        var periodic: Double?
-        var free: Double?
-    }
-    public func deductionSources() -> DeductionSources? {
-        getMetadataValue(key: "deductionSources")
-    }
-    public func usage() -> Usage? {
-        getMetadataValue(key: "usage")
-    }
 }
+
+// `metadata` typed view (decodedUserMetadata / chatContext / usage / deductionSources / 整段 decodedMetadata)
+// 由 MetadataCarrying protocol 默认实现统一提供, 这里只 conform 即可。
+extension CreditsTransaction: MetadataCarrying {}
 
 // MARK: - Pay Order
 
