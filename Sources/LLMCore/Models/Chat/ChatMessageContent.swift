@@ -118,8 +118,10 @@ public struct ChatMessageContent: ContentModel, Identifiable {
             switch self {
                 case .image(let url):
                     return .image(.init(imageUrl: .init(url: url.absoluteString, detail: nil)))
-                default:
-                    return nil
+                case .base64EncodedImage(let dataURI):
+                    // dataURI 已是完整 `data:<mediaType>;base64,...`, OpenAI image_url 协议接受 data URI;
+                    // base64 字符串只走 vision 通道, 不进文本 tokenizer, 不影响 context window。
+                    return .image(.init(imageUrl: .init(url: dataURI, detail: nil)))
             }
         }
         
@@ -196,12 +198,13 @@ extension [ChatMessageContent] {
                                 )
                                 +
                                 (
-                                    message.files?.compactMap { file in
+                                    message.files?.compactMap { file -> ChatQuery.ChatCompletionMessageParam.UserMessageParam.Content.ContentPart? in
                                         switch file {
                                             case .image(let url):
                                                 return .image(.init(imageUrl: .init(url: url.absoluteString, detail: nil)))
-                                            default:
-                                                return nil
+                                            case .base64EncodedImage(let dataURI):
+                                                // dataURI 已是完整 data:...;base64,... 形态, OpenAI image_url 协议直接接收。
+                                                return .image(.init(imageUrl: .init(url: dataURI, detail: nil)))
                                         }
                                     } ?? []
                                 ),

@@ -24,11 +24,12 @@ public protocol Tool: Sendable {
     /// 简单工具用 `.parameters(...)`, 复杂工具用 `.bundleResource(...)` 加载 .json。
     var inputSchema: ToolInputSchema { get }
 
-    /// 简便开关: 永远要求 approval。默认 false。
+    /// 工具级 approval 配置 (always / auto / never)。默认 `.auto`。
     /// **必须在 protocol 里声明**, 否则 override 走不到动态分派。
-    var alwaysRequiresApproval: Bool { get }
+    var approvalRequirement: ApprovalRequirement { get }
 
-    /// 给定一次 input, 决定是否需要走 approval 流程。默认实现读 `alwaysRequiresApproval`。
+    /// 给定一次 input, 决定是否需要走 approval 流程。
+    /// 默认实现读 `approvalRequirement`, `.auto` 时还会探测 input 顶层的 `approvalReason` 字段。
     /// **必须在 protocol 里声明**, 否则 override 走不到动态分派。
     func approvalPolicy(input: String) -> ApprovalPolicy
 
@@ -62,15 +63,64 @@ public extension Tool {
 
     // MARK: - Approval
 
-    /// 简便开关: 简单工具直接 override 这个 Bool, 永远要求 approve;
-    /// 需要按 input 动态决定的工具 override `approvalPolicy(input:)` 即可。默认 false (auto)。
-    var alwaysRequiresApproval: Bool { false }
+    /// 默认 `.auto`: AI 在 input 顶层填了 `approvalReason` 就过审, 没填就直跑。
+    /// - 本质上危险的工具 (发邮件 / 删文件 / 不可逆操作) override 成 `.always`。
+    /// - 绝对安全的只读工具 override 成 `.never`, 防 AI 误填 approvalReason 触发无意义弹窗。
+    var approvalRequirement: ApprovalRequirement { .auto }
 
     /// 给定一次 input, 决定是否需要走 approval 流程。
-    /// 默认实现读 `alwaysRequiresApproval`。Tool 作者可以 override 这个返回更精细的策略。
+    /// 默认实现按 `approvalRequirement` 走; `.auto` 时探测 input 顶层 `approvalReason` 字段。
+    /// 需要更复杂判断的工具可以 override 这个方法。
     func approvalPolicy(input: String) -> ApprovalPolicy {
-        alwaysRequiresApproval ? .requiresApproval(reason: nil) : .autoApprove
+        switch approvalRequirement {
+        case .always:
+            return .requiresApproval(reason: nil)
+        case .never:
+            return .autoApprove
+        case .auto:
+            if let reason = Self._extractApprovalReason(from: input) {
+                return .requiresApproval(reason: reason)
+            }
+            return .autoApprove
+        }
     }
+
+    /// LLMKit 协议级保留字段名: AI 在 tool input 顶层填这个 string, LLMKit 自动弹审批。
+    /// 工具的 JSON Schema 里需要把这个字段声明出来 AI 才会填。
+    static func _extractApprovalReason(from input: String) -> String? {
+        guard let data = input.data(using: .utf8),
+              let probe = try? JSONDecoder().decode(_ApprovalProbe.self, from: data)
+        else {
+            // input 不是合法 JSON 时返回 nil → autoApprove → 走到 execute 时工具自己会 throw,
+            // 错误统一在 execute 那条路径处理, 不在这里二次解析。
+            return nil
+        }
+        // 空字符串也视作没填, 避免 AI 给个 "" 触发空理由弹窗。
+        guard let reason = probe.approvalReason, !reason.isEmpty else { return nil }
+        return reason
+    }
+}
+
+/// 仅用于探测 input 顶层 `approvalReason` 字段, 其它字段一律 ignore。
+private struct _ApprovalProbe: Decodable {
+    let approvalReason: String?
+}
+
+/// 工具级 approval 配置 (静态属性), 决定 LLMKit 默认实现如何判断 approval。
+/// 复杂判断 (例如"含 delete op 才弹") 仍然可以用更通用的 `.auto` + 在 input 里教 AI 填 `approvalReason`,
+/// 不必专门 override `approvalPolicy(input:)`。
+public enum ApprovalRequirement: Sendable {
+    /// 默认: input 顶层含非空 `approvalReason` 字段 → 弹审批; 否则放行。
+    /// AI 在 system prompt 里被教"什么场景该填 approvalReason", 由模型自决。
+    case auto
+
+    /// 不论 input 怎么填, 每次都过审。
+    /// 用于本质危险的工具: 发邮件 / 删文件 / 不可逆操作。
+    case always
+
+    /// 不论 input 怎么填, 永远不过审。
+    /// 用于绝对安全的只读工具, 防 AI 误填 approvalReason 触发无意义弹窗。
+    case never
 }
 
 /// Tool 决定本次 input 要不要走 approval。
