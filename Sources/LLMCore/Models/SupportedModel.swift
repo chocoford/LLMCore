@@ -36,14 +36,16 @@ public enum SupportedModel: ContentModel {
     case nanoBanana
     case nanoBanana2
 
+    // --- Minimax ---
+    case minimaxM2_7
+    case minimaxM2_5
+    case minimaxM2
 
     // --- Kimi ---
     case kimiK2_6
 
-    // --- Non-OpenRouter Models ---
-    case minimaxM2_7
-    case minimaxM2_5
-    case minimaxM2
+    // --- Qwen ---
+    case qwen3_6Plus
 
     
 
@@ -68,10 +70,11 @@ public enum SupportedModel: ContentModel {
             case .nanoBananaFree: return "google/gemini-2.5-flash-image-preview:free"
             case .nanoBanana: return "google/gemini-2.5-flash-image-preview"
             case .nanoBanana2: return "google/gemini-3.1-flash-image-preview"
-            case .kimiK2_6: return "moonshotai/kimi-k2.6"
             case .minimaxM2_7: return "minimax/minimax-m2.7"
             case .minimaxM2_5: return "minimax/minimax-m2.5"
             case .minimaxM2: return "minimax/minimax-m2"
+            case .kimiK2_6: return "moonshotai/kimi-k2.6"
+            case .qwen3_6Plus: return "qwen/qwen3.6-plus"
             case .other(let value): return value
         }
     }
@@ -98,10 +101,11 @@ public enum SupportedModel: ContentModel {
             case "google/gemini-2.5-flash-image-preview:free": self = .nanoBananaFree
             case "google/gemini-2.5-flash-image-preview": self = .nanoBanana
             case "google/gemini-3.1-flash-image-preview": self = .nanoBanana2
-            case "moonshotai/kimi-k2.6": self = .kimiK2_6
             case "minimax/minimax-m2.7": self = .minimaxM2_7
             case "minimax/minimax-m2.5": self = .minimaxM2_5
             case "minimax/minimax-m2": self = .minimaxM2
+            case "moonshotai/kimi-k2.6": self = .kimiK2_6
+            case "qwen/qwen3.6-plus": self = .qwen3_6Plus
             default: self = .other(rawValue)
         }
     }
@@ -148,10 +152,11 @@ extension SupportedModel {
             case .nanoBananaFree: return "Nano Banana (Free)"
             case .nanoBanana: return "Nano Banana"
             case .nanoBanana2: return "Nano Banana 2"
-            case .kimiK2_6: return "Kimi K2.6"
             case .minimaxM2_7: return "Minimax-M2.7" 
             case .minimaxM2_5: return "Minimax-M2.5"
             case .minimaxM2: return "Minimax-M2"
+            case .kimiK2_6: return "Kimi K2.6"
+            case .qwen3_6Plus: return "Qwen3.6 Plus"
 
             case .other(let value): return value
         }
@@ -172,6 +177,8 @@ extension SupportedModel {
                 return "Minimax"
             case .kimiK2_6:
                 return "MoonshotAI"
+            case .qwen3_6Plus:
+                return "Qwen"
             case .other:
                 return "Other"
         }
@@ -195,6 +202,8 @@ extension SupportedModel {
             .mistral7b, .mixtral8x7b,
             .minimaxM2_7, .minimaxM2_5, .minimaxM2,
             .kimiK2_6,
+            .qwen3_6Plus,
+            // Image models (也算聊天模型, 因为它们支持 vision 输入):
             .nanoBanana, .nanoBananaFree, .nanoBanana2,
         ]
     }
