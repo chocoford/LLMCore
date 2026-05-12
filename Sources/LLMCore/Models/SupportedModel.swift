@@ -47,7 +47,11 @@ public enum SupportedModel: ContentModel {
     // --- Qwen ---
     case qwen3_6Plus
 
-    
+    // --- Tenent ---
+    case hy3Preview
+
+    // --- Xiaomi ---
+    case mimoV2_5Pro
 
     case other(String)
 
@@ -75,6 +79,8 @@ public enum SupportedModel: ContentModel {
             case .minimaxM2: return "minimax/minimax-m2"
             case .kimiK2_6: return "moonshotai/kimi-k2.6"
             case .qwen3_6Plus: return "qwen/qwen3.6-plus"
+            case .hy3Preview: return "tencent/hy3-preview"
+            case .mimoV2_5Pro: return "xiaomi/mimo-v2.5-pro"
             case .other(let value): return value
         }
     }
@@ -106,6 +112,8 @@ public enum SupportedModel: ContentModel {
             case "minimax/minimax-m2": self = .minimaxM2
             case "moonshotai/kimi-k2.6": self = .kimiK2_6
             case "qwen/qwen3.6-plus": self = .qwen3_6Plus
+            case "tencent/hy3-preview": self = .hy3Preview
+            case "xiaomi/mimo-v2.5-pro": self = .mimoV2_5Pro
             default: self = .other(rawValue)
         }
     }
@@ -126,6 +134,67 @@ public enum SupportedModel: ContentModel {
         switch self {
         default:
             return true
+        }
+    }
+
+    /// 模型是否接受图像输入 (消息里夹带 image 类型的 content/file 给它看)。
+    ///
+    /// 用法:
+    /// - 客户端模型选择器: 加 badge / 过滤
+    /// - send 按钮: 用户附了图 + 当前模型不支持 → 禁用或换模型提示
+    /// - 跟 `prepareUploadFiles` 链路对应, 不支持的模型走纯文本路径
+    ///
+    /// 注: 这只表达 image **输入** 能力。"输出图像"(image generation) 跟这个不同, 由专门的模型类别
+    /// 处理 (例如 nanoBanana 系列既能输入也能生成, 这里仍标 true 因为它确实接受 image input)。
+    public var supportsImageInput: Bool {
+        switch self {
+            // --- OpenAI ---
+            case .gpt5_5, .gpt5_4, .gpt4o, .gpt4oMini, .gpt4oLatest:
+                return true
+            case .gpt35Turbo:
+                return false
+
+            // --- Anthropic ---
+            case .claudeOpus4_7, .claudeOpus4_6, .claudeSonnet4_6, .claudeHaiku4_5:
+                return true
+
+            // --- Mistral (纯文本) ---
+            case .mistral7b, .mixtral8x7b:
+                return false
+
+            // --- Gemini ---
+            case .gemini15Pro, .gemini15Flash:
+                return true
+
+            // --- nanoBanana 系列 (image-in-out) ---
+            case .nanoBananaFree, .nanoBanana, .nanoBanana2:
+                return true
+
+            // --- Minimax (不确定, 先 true 方便测试; 实测确认后再 toggle) ---
+            case .minimaxM2_7, .minimaxM2_5, .minimaxM2:
+                return true
+
+            // --- Kimi ---
+            case .kimiK2_6:
+                return true
+
+            // --- Qwen (不确定, 先 true 方便测试; 非 -VL 变体可能不支持) ---
+            case .qwen3_6Plus:
+                return true
+
+            // --- Tenent ---
+            case .hy3Preview:
+                return false
+
+            // --- XiaoMi ---
+            case .mimoV2_5Pro:
+                return true
+
+            // --- 未知模型 ---
+            // 上游对图像输入的拒绝是硬错误 (400), 误开比误关风险大, 默认 false。
+            // 用户用自定义 model 又需要 vision, 自己包一层 wrap 重写这个属性即可。
+            case .other:
+                return false
         }
     }
 }
@@ -157,6 +226,8 @@ extension SupportedModel {
             case .minimaxM2: return "Minimax-M2"
             case .kimiK2_6: return "Kimi K2.6"
             case .qwen3_6Plus: return "Qwen3.6 Plus"
+            case .hy3Preview: return "HY3 Preview"
+            case .mimoV2_5Pro: return "MIMO v2.5 Pro"
 
             case .other(let value): return value
         }
@@ -179,6 +250,10 @@ extension SupportedModel {
                 return "MoonshotAI"
             case .qwen3_6Plus:
                 return "Qwen"
+            case .hy3Preview:
+                return "Tencent"
+            case .mimoV2_5Pro:
+                return "Xiaomi"
             case .other:
                 return "Other"
         }
@@ -203,6 +278,8 @@ extension SupportedModel {
             .minimaxM2_7, .minimaxM2_5, .minimaxM2,
             .kimiK2_6,
             .qwen3_6Plus,
+            .hy3Preview,
+            .mimoV2_5Pro,
             // Image models (也算聊天模型, 因为它们支持 vision 输入):
             .nanoBanana, .nanoBananaFree, .nanoBanana2,
         ]

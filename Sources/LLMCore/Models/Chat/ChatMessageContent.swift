@@ -19,6 +19,16 @@ public struct ChatMessageContent: ContentModel, Identifiable {
 
     /// LLM 决定调用的工具 (assistant 角色消息携带)。
     /// 一个 assistant 消息可以同时有 content (思考) 和 toolCalls (动作)。
+    ///
+    /// 流式状态约定:
+    /// - `nil`: 还没开始流 toolCalls (本条消息可能根本没有 tool 调用, 也可能稍后才会出现)
+    /// - `[]`: toolCalls 已开始流, 但还没累积出具体 item
+    /// - `[items]`: toolCalls 已开始流, 已累积出至少一个调用
+    ///
+    /// 注: 这只表达 toolCalls 自身的进度, 不暗示 content 字段的状态。content 是流是停由调用方
+    /// 结合 `isStreaming(messageID:in:)` / `usage` / 业务上下文自己决定。
+    ///
+    /// 实现保证: 一旦在累加流程里设为非 nil, 后续 chunk 不会再把它回退到 nil。
     public var toolCalls: [ToolCall]?
 
     /// 当 role == .tool 时填, 表示这条消息是哪一个 tool_call 的结果。
