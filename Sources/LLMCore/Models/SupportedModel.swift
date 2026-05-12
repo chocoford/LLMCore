@@ -28,8 +28,8 @@ public enum SupportedModel: ContentModel {
     case mixtral8x7b
 
     // --- Google Gemini 系 ---
-    case gemini15Pro
-    case gemini15Flash
+    case gemini3_1ProPreview
+    case gemini3FlashPreview
 
     // --- Image ---
     case nanoBananaFree
@@ -102,8 +102,8 @@ public enum SupportedModel: ContentModel {
             case "anthropic/claude-haiku-4.5": self = .claudeHaiku4_5
             case "mistral-7b-instruct": self = .mistral7b
             case "mixtral-8x7b-instruct": self = .mixtral8x7b
-            case "gemini-1.5-pro": self = .gemini15Pro
-            case "gemini-1.5-flash": self = .gemini15Flash
+            case "google/gemini-3.1-pro-preview": self = .gemini3_1ProPreview
+            case "google/gemini-3-flash-preview": self = .gemini3FlashPreview
             case "google/gemini-2.5-flash-image-preview:free": self = .nanoBananaFree
             case "google/gemini-2.5-flash-image-preview": self = .nanoBanana
             case "google/gemini-3.1-flash-image-preview": self = .nanoBanana2
@@ -163,7 +163,7 @@ public enum SupportedModel: ContentModel {
                 return false
 
             // --- Gemini ---
-            case .gemini15Pro, .gemini15Flash:
+            case .gemini3_1ProPreview, .gemini3FlashPreview:
                 return true
 
             // --- nanoBanana 系列 (image-in-out) ---
@@ -197,6 +197,71 @@ public enum SupportedModel: ContentModel {
                 return false
         }
     }
+
+    /// 模型的最大上下文窗口大小, 单位 tokens (输入 + 输出累加上限)。
+    ///
+    /// 对应 OpenRouter 模型详情页里 "Context" 那个数字。客户端典型用法:
+    /// - compaction 触发阈值 (实际 token 用量超 X% 时跑 `compactConversation`)
+    /// - 用户输入预检 (附长文档时检查会不会爆)
+    /// - 模型选择器展示容量 badge
+    ///
+    /// 数值取自各 provider 文档 / OpenRouter 公开数据 (截止 2026 中期)。
+    /// `.other` (未知模型) 返回 nil, 调用方自行选 fallback 默认值。
+    /// 部分模型 (gpt5_*, nanoBanana, minimax, kimi, hy3, mimo) 数值是估算, 上线前对一下 OpenRouter。
+    public var maxContextTokens: Int? {
+        switch self {
+            // --- OpenAI ---
+            case .gpt5_5, .gpt5_4:
+                return 1_050_000
+            case .gpt4o, .gpt4oMini, .gpt4oLatest:
+                return 128_000
+            case .gpt35Turbo:
+                return 16_385
+
+            // --- Anthropic ---
+            case .claudeOpus4_7, .claudeOpus4_6, .claudeSonnet4_6:
+                return 1_000_000
+            case .claudeHaiku4_5:
+                return 200_000
+
+            // --- Mistral ---
+            case .mistral7b, .mixtral8x7b:
+                return 2824
+
+            // --- Gemini ---
+            case .gemini3_1ProPreview, .gemini3FlashPreview:
+                return 1_048_576
+
+            // --- nanoBanana (image gen 系列, 文本上下文相对小) ---
+            case .nanoBananaFree, .nanoBanana, .nanoBanana2:
+                return 32_768
+
+            // --- Minimax ---
+            case .minimaxM2, .minimaxM2_5, .minimaxM2_7:
+                return 196_608
+
+            // --- Kimi ---
+            case .kimiK2_6:
+                return 32_768
+
+            // --- Qwen ---
+            case .qwen3_6Plus:
+                return 1_000_000
+
+            // --- Tencent ---
+            case .hy3Preview:
+                return 262_144
+
+            // --- Xiaomi ---
+            case .mimoV2_5Pro:
+                return 1_048_576
+
+            // --- 未知模型 ---
+            // 客户端自己决定 fallback (例如保守用 8192, 或拒绝发送)。
+            case .other:
+                return nil
+        }
+    }
 }
 
 // MARK: - UI Helper Extensions
@@ -216,8 +281,8 @@ extension SupportedModel {
             case .claudeHaiku4_5: return "Claude Haiku 4.5"
             case .mistral7b: return "Mistral 7B"
             case .mixtral8x7b: return "Mixtral 8x7B"
-            case .gemini15Pro: return "Gemini 1.5 Pro"
-            case .gemini15Flash: return "Gemini 1.5 Flash"
+            case .gemini3_1ProPreview: return "Gemini 3.1 Pro Preview"
+            case .gemini3FlashPreview: return "Gemini 3 Flash Preview"
             case .nanoBananaFree: return "Nano Banana (Free)"
             case .nanoBanana: return "Nano Banana"
             case .nanoBanana2: return "Nano Banana 2"
@@ -242,7 +307,7 @@ extension SupportedModel {
                 return "Anthropic"
             case .mistral7b, .mixtral8x7b:
                 return "Mistral"
-            case .gemini15Pro, .gemini15Flash, .nanoBananaFree, .nanoBanana, .nanoBanana2:
+            case .gemini3_1ProPreview, .gemini3FlashPreview, .nanoBananaFree, .nanoBanana, .nanoBanana2:
                 return "Google"
             case .minimaxM2_7, .minimaxM2_5, .minimaxM2:
                 return "Minimax"
@@ -273,7 +338,7 @@ extension SupportedModel {
         return [
             .gpt5_5, .gpt5_4, .gpt4oMini, .gpt4o, .gpt4oLatest, .gpt35Turbo,
             .claudeHaiku4_5, .claudeOpus4_6, .claudeOpus4_7, .claudeSonnet4_6,
-            .gemini15Flash, .gemini15Pro,
+            .gemini3_1ProPreview, .gemini3FlashPreview,
             .mistral7b, .mixtral8x7b,
             .minimaxM2_7, .minimaxM2_5, .minimaxM2,
             .kimiK2_6,

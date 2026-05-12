@@ -13,7 +13,11 @@ import Foundation
 /// 拆成"step type"。AgentExecutor 现在只看"是否注册了工具"来决定是 agent loop 还是 direct chat。
 public struct AgentConfig: Codable, Sendable, Equatable {
     /// Available tools for the agent. 空 = 直接 chat 不走 ReAct loop。
-    public internal(set) var tools: [String]
+    /// 公开可变: 客户端可以直接 mutate `conversation.agentConfig.tools` 来切换工具集 (比如按
+    /// 当前 model 解锁不同 tools)。mutation 是 in-memory 的, 跨重启的持久化跟随
+    /// `persistenceProvider` 实现 — 默认每次 sendMessage 落地 messages 时会同时把当前
+    /// conversation snapshot 写盘, 自动带上最新 agentConfig。
+    public var tools: [String]
 
     /// System prompt for the agent.
     /// 客户端 agent (例如 excalidraw-canvas) 应该把这字段留空, 由服务端在 /chat 时通过
@@ -70,6 +74,15 @@ public struct AgentConfig: Codable, Sendable, Equatable {
         try container.encode(maxThoughts, forKey: .maxThoughts)
         try container.encode(temperature, forKey: .temperature)
         try container.encodeIfPresent(agentID, forKey: .agentID)
+    }
+
+    /// 返回一个 tools 字段被覆写的副本, 其它字段保持不变。
+    /// 适合"想跑一次变体但不动 conversation 默认"的临时场景 (单元测试 / 实验性调用)。
+    /// 日常 mutation 直接改 `conversation.agentConfig.tools` 即可, 不需要这个 helper。
+    public func with(tools: [String]) -> AgentConfig {
+        var copy = self
+        copy.tools = tools
+        return copy
     }
 
     /// Traditional chat configuration (no tools).
