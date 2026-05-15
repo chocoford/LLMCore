@@ -16,6 +16,12 @@ public enum AppPlatform: String, Codable, Sendable {
     case weixinMiniProgram
 }
 
+public enum SubscriptionEnvironment: String, Codable, Sendable {
+    case sandbox = "Sandbox"
+    case production = "Production"
+    case xcode = "Xcode"
+}
+
 // MARK: - Admin Response Models
 
 public struct UserResponse: ContentModel {
@@ -146,22 +152,85 @@ public struct SubscriptionEventResponse: ContentModel {
     public let userIdentityId: UUID
     public let provider: String
     public let productId: String
+    public let environment: SubscriptionEnvironment?
     public let type: String
     public let status: String
     public let rawPayload: String?
     public let processed: Bool
     public let createdAt: Date?
 
-    public init(id: UUID, userIdentityId: UUID, provider: String, productId: String, type: String, status: String, rawPayload: String?, processed: Bool, createdAt: Date?) {
+    public init(id: UUID, userIdentityId: UUID, provider: String, productId: String, environment: SubscriptionEnvironment?, type: String, status: String, rawPayload: String?, processed: Bool, createdAt: Date?) {
         self.id = id
         self.userIdentityId = userIdentityId
         self.provider = provider
         self.productId = productId
+        self.environment = environment
         self.type = type
         self.status = status
         self.rawPayload = rawPayload
         self.processed = processed
         self.createdAt = createdAt
+    }
+}
+
+public struct SubscriptionStateResponse: ContentModel {
+    public let id: UUID
+    public let userIdentityId: UUID
+    public let appConfigId: UUID?
+    public let provider: String
+    public let environment: SubscriptionEnvironment
+    public let originalTransactionId: String
+    public let currentTransactionId: String?
+    public let productId: String
+    public let subscriptionGroupID: String?
+    public let status: String
+    public let currentPeriodStart: Date?
+    public let currentPeriodEnd: Date?
+    public let clientVerifiedAt: Date?
+    public let asnConfirmedAt: Date?
+    public let lastNotificationUUID: String?
+    public let lastSignedDate: Date?
+    public let createdAt: Date?
+    public let updatedAt: Date?
+
+    public init(
+        id: UUID,
+        userIdentityId: UUID,
+        appConfigId: UUID?,
+        provider: String,
+        environment: SubscriptionEnvironment,
+        originalTransactionId: String,
+        currentTransactionId: String?,
+        productId: String,
+        subscriptionGroupID: String?,
+        status: String,
+        currentPeriodStart: Date?,
+        currentPeriodEnd: Date?,
+        clientVerifiedAt: Date?,
+        asnConfirmedAt: Date?,
+        lastNotificationUUID: String?,
+        lastSignedDate: Date?,
+        createdAt: Date?,
+        updatedAt: Date?
+    ) {
+        self.id = id
+        self.userIdentityId = userIdentityId
+        self.appConfigId = appConfigId
+        self.provider = provider
+        self.environment = environment
+        self.originalTransactionId = originalTransactionId
+        self.currentTransactionId = currentTransactionId
+        self.productId = productId
+        self.subscriptionGroupID = subscriptionGroupID
+        self.status = status
+        self.currentPeriodStart = currentPeriodStart
+        self.currentPeriodEnd = currentPeriodEnd
+        self.clientVerifiedAt = clientVerifiedAt
+        self.asnConfirmedAt = asnConfirmedAt
+        self.lastNotificationUUID = lastNotificationUUID
+        self.lastSignedDate = lastSignedDate
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
 }
 
