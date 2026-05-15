@@ -24,38 +24,155 @@ public protocol CreditTransactionMetadata: ContentModel {
 // MARK: - Credits Info
 public struct CreditsInfo: ContentModel {
     public var balance: Double              // Total available credits
-    public var subscription: SubscriptionInfo?
-    public var purchasedCredits: Double     // Credits purchased outside subscription
+    public var periodicCredits: PeriodicCreditsInfo?
+    public var purchasedCredits: Double     // Permanently purchased / non-expiring credits
 
     public init(
         balance: Double,
-        subscription: SubscriptionInfo? = nil,
+        periodicCredits: PeriodicCreditsInfo? = nil,
         purchasedCredits: Double
     ) {
         self.balance = balance
-        self.subscription = subscription
+        self.periodicCredits = periodicCredits
         self.purchasedCredits = purchasedCredits
+    }
+
+    @available(*, deprecated, message: "Use periodicCredits instead. CreditsInfo no longer exposes subscription semantics.")
+    public var subscription: PeriodicCreditsInfo? {
+        get { periodicCredits }
+        set { periodicCredits = newValue }
+    }
+
+    @available(*, deprecated, message: "Use init(balance:periodicCredits:purchasedCredits:) instead.")
+    public init(
+        balance: Double,
+        subscription: PeriodicCreditsInfo?,
+        purchasedCredits: Double
+    ) {
+        self.init(
+            balance: balance,
+            periodicCredits: subscription,
+            purchasedCredits: purchasedCredits
+        )
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case balance
+        case periodicCredits
+        case subscription
+        case purchasedCredits
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.balance = try container.decode(Double.self, forKey: .balance)
+        if let periodicCredits = try container.decodeIfPresent(PeriodicCreditsInfo.self, forKey: .periodicCredits) {
+            self.periodicCredits = periodicCredits
+        } else {
+            self.periodicCredits = try container.decodeIfPresent(PeriodicCreditsInfo.self, forKey: .subscription)
+        }
+        self.purchasedCredits = try container.decode(Double.self, forKey: .purchasedCredits)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(balance, forKey: .balance)
+        try container.encodeIfPresent(periodicCredits, forKey: .periodicCredits)
+        try container.encode(purchasedCredits, forKey: .purchasedCredits)
     }
 }
 
-public struct SubscriptionInfo: ContentModel {
-    public var monthlyQuota: Double         // Monthly quota from subscription
-    public var usedQuota: Double            // Used quota this month
-    public var remainingQuota: Double       // Remaining quota this month
-    public var renewalDate: Date            // When quota resets
+public struct PeriodicCreditsInfo: ContentModel {
+    public var quota: Double                // Total credits granted for the current period
+    public var used: Double                 // Credits used during the current period
+    public var remaining: Double            // Credits remaining in the current period
+    public var resetDate: Date              // When the current period resets/expires
 
+    public init(
+        quota: Double,
+        used: Double,
+        remaining: Double,
+        resetDate: Date
+    ) {
+        self.quota = quota
+        self.used = used
+        self.remaining = remaining
+        self.resetDate = resetDate
+    }
+
+    @available(*, deprecated, message: "Use quota instead. This value describes periodic credits, not a subscription quota.")
+    public var monthlyQuota: Double {
+        get { quota }
+        set { quota = newValue }
+    }
+
+    @available(*, deprecated, message: "Use used instead.")
+    public var usedQuota: Double {
+        get { used }
+        set { used = newValue }
+    }
+
+    @available(*, deprecated, message: "Use remaining instead.")
+    public var remainingQuota: Double {
+        get { remaining }
+        set { remaining = newValue }
+    }
+
+    @available(*, deprecated, message: "Use resetDate instead.")
+    public var renewalDate: Date {
+        get { resetDate }
+        set { resetDate = newValue }
+    }
+
+    @available(*, deprecated, message: "Use init(quota:used:remaining:resetDate:) instead.")
     public init(
         monthlyQuota: Double,
         usedQuota: Double,
         remainingQuota: Double,
         renewalDate: Date
     ) {
-        self.monthlyQuota = monthlyQuota
-        self.usedQuota = usedQuota
-        self.remainingQuota = remainingQuota
-        self.renewalDate = renewalDate
+        self.init(
+            quota: monthlyQuota,
+            used: usedQuota,
+            remaining: remainingQuota,
+            resetDate: renewalDate
+        )
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case quota
+        case used
+        case remaining
+        case resetDate
+        case monthlyQuota
+        case usedQuota
+        case remainingQuota
+        case renewalDate
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.quota = try container.decodeIfPresent(Double.self, forKey: .quota)
+            ?? container.decode(Double.self, forKey: .monthlyQuota)
+        self.used = try container.decodeIfPresent(Double.self, forKey: .used)
+            ?? container.decode(Double.self, forKey: .usedQuota)
+        self.remaining = try container.decodeIfPresent(Double.self, forKey: .remaining)
+            ?? container.decode(Double.self, forKey: .remainingQuota)
+        self.resetDate = try container.decodeIfPresent(Date.self, forKey: .resetDate)
+            ?? container.decode(Date.self, forKey: .renewalDate)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(quota, forKey: .quota)
+        try container.encode(used, forKey: .used)
+        try container.encode(remaining, forKey: .remaining)
+        try container.encode(resetDate, forKey: .resetDate)
     }
 }
+
+@available(*, deprecated, message: "Use PeriodicCreditsInfo. This type describes periodic credits, not subscription state.")
+public typealias SubscriptionInfo = PeriodicCreditsInfo
 
 public enum SubscriptionStatus: String, ContentModel {
     case active
