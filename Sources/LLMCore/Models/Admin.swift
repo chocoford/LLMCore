@@ -16,7 +16,7 @@ public enum AppPlatform: String, Codable, Sendable {
     case weixinMiniProgram
 }
 
-public enum SubscriptionEnvironment: String, Codable, Sendable {
+public enum SubscriptionEnvironment: String, ContentModel {
     case sandbox = "Sandbox"
     case production = "Production"
     case xcode = "Xcode"

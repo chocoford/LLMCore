@@ -57,6 +57,52 @@ public struct SubscriptionInfo: ContentModel {
     }
 }
 
+public enum SubscriptionStatus: String, ContentModel {
+    case active
+    case expired
+    case revoked
+    case refunded
+    case billingRetry
+    case gracePeriod
+}
+
+public struct SubscriptionStateInfo: ContentModel {
+    public let provider: String
+    public let environment: SubscriptionEnvironment
+    public let productId: String
+    public let subscriptionGroupID: String?
+    public let status: SubscriptionStatus
+    public let currentPeriodStart: Date?
+    public let currentPeriodEnd: Date?
+    public let clientVerifiedAt: Date?
+    public let asnConfirmedAt: Date?
+    public let updatedAt: Date?
+
+    public init(
+        provider: String,
+        environment: SubscriptionEnvironment,
+        productId: String,
+        subscriptionGroupID: String?,
+        status: SubscriptionStatus,
+        currentPeriodStart: Date?,
+        currentPeriodEnd: Date?,
+        clientVerifiedAt: Date?,
+        asnConfirmedAt: Date?,
+        updatedAt: Date?
+    ) {
+        self.provider = provider
+        self.environment = environment
+        self.productId = productId
+        self.subscriptionGroupID = subscriptionGroupID
+        self.status = status
+        self.currentPeriodStart = currentPeriodStart
+        self.currentPeriodEnd = currentPeriodEnd
+        self.clientVerifiedAt = clientVerifiedAt
+        self.asnConfirmedAt = asnConfirmedAt
+        self.updatedAt = updatedAt
+    }
+}
+
 // MARK: - Transaction History
 
 public protocol CreditsTransactionMetaData: ContentModel {
@@ -251,4 +297,3 @@ public struct MyReferralSummaryResponse: ContentModel {
         self.inviter = inviter
     }
 }
-
