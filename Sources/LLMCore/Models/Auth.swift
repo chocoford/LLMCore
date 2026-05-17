@@ -35,15 +35,18 @@ public struct IAPAuthRequest: ContentModel {
     public var jws: String
     public var bundleID: String
     public var ascAppID: Int64?
+    public var anonID: String?
     
     public init(
         jws: String,
         bundleID: String,
-        ascAppID: Int64?
+        ascAppID: Int64?,
+        anonID: String? = nil
     ) {
         self.jws = jws
         self.bundleID = bundleID
         self.ascAppID = ascAppID
+        self.anonID = anonID
     }
 }
 
