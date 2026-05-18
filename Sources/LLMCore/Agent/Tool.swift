@@ -211,6 +211,14 @@ public enum ToolInputSchema: Sendable {
             if let enums = prop.enum {
                 dict["enum"] = AnyCodable(enums)
             }
+            if let items = prop.items {
+                dict["items"] = items
+            } else if prop.type == "array" {
+                // The flat ToolParameters builder can only describe simple properties.
+                // Treat array properties as string arrays by default; complex arrays
+                // should use `.bundleResource` or `.raw` with an explicit `items`.
+                dict["items"] = AnyCodable(["type": AnyCodable("string")])
+            }
             return AnyCodable(dict)
         }
         let schema: [String: AnyCodable] = [
@@ -319,11 +327,18 @@ public struct ParameterProperty: Codable, Sendable {
     public var type: String
     public var description: String
     public var `enum`: [String]?
+    public var items: AnyCodable?
 
-    public init(type: String, description: String, enum: [String]? = nil) {
+    public init(
+        type: String,
+        description: String,
+        enum: [String]? = nil,
+        items: AnyCodable? = nil
+    ) {
         self.type = type
         self.description = description
         self.enum = `enum`
+        self.items = items
     }
 }
 

@@ -150,26 +150,52 @@ public struct PromotionClaimResponse: ContentModel {
 public struct SubscriptionEventResponse: ContentModel {
     public let id: UUID
     public let userIdentityId: UUID
+    public let appConfigId: UUID?
+    public let appBundleId: String?
+    public let appPlatform: String?
     public let provider: String
     public let productId: String
+    public let notificationUUID: String?
     public let environment: SubscriptionEnvironment?
     public let type: String
     public let status: String
     public let rawPayload: String?
     public let processed: Bool
     public let createdAt: Date?
+    public let updatedAt: Date?
 
-    public init(id: UUID, userIdentityId: UUID, provider: String, productId: String, environment: SubscriptionEnvironment?, type: String, status: String, rawPayload: String?, processed: Bool, createdAt: Date?) {
+    public init(
+        id: UUID,
+        userIdentityId: UUID,
+        appConfigId: UUID? = nil,
+        appBundleId: String? = nil,
+        appPlatform: String? = nil,
+        provider: String,
+        productId: String,
+        notificationUUID: String? = nil,
+        environment: SubscriptionEnvironment?,
+        type: String,
+        status: String,
+        rawPayload: String?,
+        processed: Bool,
+        createdAt: Date?,
+        updatedAt: Date? = nil
+    ) {
         self.id = id
         self.userIdentityId = userIdentityId
+        self.appConfigId = appConfigId
+        self.appBundleId = appBundleId
+        self.appPlatform = appPlatform
         self.provider = provider
         self.productId = productId
+        self.notificationUUID = notificationUUID
         self.environment = environment
         self.type = type
         self.status = status
         self.rawPayload = rawPayload
         self.processed = processed
         self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
 }
 
@@ -231,6 +257,121 @@ public struct SubscriptionStateResponse: ContentModel {
         self.lastSignedDate = lastSignedDate
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+}
+
+public struct SubscriptionStatsCountItem: ContentModel {
+    public let key: String
+    public let label: String
+    public let count: Int
+
+    public init(key: String, label: String, count: Int) {
+        self.key = key
+        self.label = label
+        self.count = count
+    }
+}
+
+public struct SubscriptionStatsTrendPoint: ContentModel {
+    public let date: Date
+    public let key: String
+    public let label: String
+    public let count: Int
+
+    public init(date: Date, key: String, label: String, count: Int) {
+        self.date = date
+        self.key = key
+        self.label = label
+        self.count = count
+    }
+}
+
+public struct SubscriptionStatsAppEnvironmentItem: ContentModel {
+    public let app: String
+    public let environment: String
+    public let count: Int
+
+    public init(app: String, environment: String, count: Int) {
+        self.app = app
+        self.environment = environment
+        self.count = count
+    }
+}
+
+public struct SubscriptionStatsProblemSignals: ContentModel {
+    public let unprocessedEvents: Int
+    public let expiredEntitlements: Int
+    public let missingASNConfirmations: Int
+    public let unknownEnvironmentEvents: Int
+    public let eventsWithoutAppConfig: Int
+
+    public init(
+        unprocessedEvents: Int,
+        expiredEntitlements: Int,
+        missingASNConfirmations: Int,
+        unknownEnvironmentEvents: Int,
+        eventsWithoutAppConfig: Int
+    ) {
+        self.unprocessedEvents = unprocessedEvents
+        self.expiredEntitlements = expiredEntitlements
+        self.missingASNConfirmations = missingASNConfirmations
+        self.unknownEnvironmentEvents = unknownEnvironmentEvents
+        self.eventsWithoutAppConfig = eventsWithoutAppConfig
+    }
+}
+
+public struct SubscriptionStatsOverviewResponse: ContentModel {
+    public let environment: String
+    public let days: Int
+    public let from: Date
+    public let to: Date
+    public let totalStates: Int
+    public let totalEvents: Int
+    public let entitledUsers: Int
+    public let activeUsers: Int
+    public let entitledProducts: Int
+    public let periodEvents: Int
+    public let statusDistribution: [SubscriptionStatsCountItem]
+    public let subscriberTrend: [SubscriptionStatsTrendPoint]
+    public let eventTrend: [SubscriptionStatsTrendPoint]
+    public let appEnvironmentBreakdown: [SubscriptionStatsAppEnvironmentItem]
+    public let topProducts: [SubscriptionStatsCountItem]
+    public let problemSignals: SubscriptionStatsProblemSignals
+
+    public init(
+        environment: String,
+        days: Int,
+        from: Date,
+        to: Date,
+        totalStates: Int,
+        totalEvents: Int,
+        entitledUsers: Int,
+        activeUsers: Int,
+        entitledProducts: Int,
+        periodEvents: Int,
+        statusDistribution: [SubscriptionStatsCountItem],
+        subscriberTrend: [SubscriptionStatsTrendPoint],
+        eventTrend: [SubscriptionStatsTrendPoint],
+        appEnvironmentBreakdown: [SubscriptionStatsAppEnvironmentItem],
+        topProducts: [SubscriptionStatsCountItem],
+        problemSignals: SubscriptionStatsProblemSignals
+    ) {
+        self.environment = environment
+        self.days = days
+        self.from = from
+        self.to = to
+        self.totalStates = totalStates
+        self.totalEvents = totalEvents
+        self.entitledUsers = entitledUsers
+        self.activeUsers = activeUsers
+        self.entitledProducts = entitledProducts
+        self.periodEvents = periodEvents
+        self.statusDistribution = statusDistribution
+        self.subscriberTrend = subscriberTrend
+        self.eventTrend = eventTrend
+        self.appEnvironmentBreakdown = appEnvironmentBreakdown
+        self.topProducts = topProducts
+        self.problemSignals = problemSignals
     }
 }
 
