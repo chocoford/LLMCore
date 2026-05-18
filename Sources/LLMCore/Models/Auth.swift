@@ -79,6 +79,75 @@ public struct AuthResponse: ContentModel {
     }
 }
 
+public struct AuthUserInfo: ContentModel {
+    public let identity: AuthUserIdentityInfo
+    public let app: AuthUserAppInfo
+    public let credits: CreditsInfo
+    public let subscriptionState: SubscriptionStateInfo?
+
+    public init(
+        identity: AuthUserIdentityInfo,
+        app: AuthUserAppInfo,
+        credits: CreditsInfo,
+        subscriptionState: SubscriptionStateInfo?
+    ) {
+        self.identity = identity
+        self.app = app
+        self.credits = credits
+        self.subscriptionState = subscriptionState
+    }
+}
+
+public struct AuthUserIdentityInfo: ContentModel {
+    public let id: UUID
+    public let userId: UUID?
+    public let provider: String
+    public let externalId: String
+    public let verified: Bool
+    public let profile: UserIdentityProfile?
+    public let createdAt: Date?
+    public let updatedAt: Date?
+
+    public init(
+        id: UUID,
+        userId: UUID?,
+        provider: String,
+        externalId: String,
+        verified: Bool,
+        profile: UserIdentityProfile?,
+        createdAt: Date?,
+        updatedAt: Date?
+    ) {
+        self.id = id
+        self.userId = userId
+        self.provider = provider
+        self.externalId = externalId
+        self.verified = verified
+        self.profile = profile
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+public struct AuthUserAppInfo: ContentModel {
+    public let id: UUID
+    public let bundleID: String
+    public let platform: AppPlatform
+    public let allowAnon: Bool
+
+    public init(
+        id: UUID,
+        bundleID: String,
+        platform: AppPlatform,
+        allowAnon: Bool
+    ) {
+        self.id = id
+        self.bundleID = bundleID
+        self.platform = platform
+        self.allowAnon = allowAnon
+    }
+}
+
 // MARK: - User Identity Profile
 
 /// 用户画像信息,存储在 UserIdentity 上,作为 JSON 列。
