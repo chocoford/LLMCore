@@ -288,7 +288,7 @@ extension [ChatMessageContent] {
                         = message.toolCalls?.map { tc in
                             .init(
                                 id: tc.id,
-                                function: .init(arguments: tc.arguments, name: tc.name)
+                                function: .init(arguments: tc.providerSafeArguments, name: tc.name)
                             )
                         }
 

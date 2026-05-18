@@ -31,6 +31,27 @@ public struct ToolCall: ContentModel {
     }
 }
 
+extension ToolCall {
+    var hasProviderSafeArguments: Bool {
+        Self.isProviderSafeArguments(arguments)
+    }
+
+    var providerSafeArguments: String {
+        hasProviderSafeArguments ? arguments : "{}"
+    }
+
+    static func isProviderSafeArguments(_ arguments: String) -> Bool {
+        let trimmed = arguments.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let data = trimmed.data(using: .utf8),
+              let value = try? JSONSerialization.jsonObject(with: data)
+        else {
+            return false
+        }
+        return value is [String: Any]
+    }
+}
+
 /// 客户端注册一个工具给 provider 时的声明 (= function schema)。
 /// 客户端把它放进 `ChatRequest.tools` 一起发给服务端, 服务端转成 OpenAI/Anthropic 各自的格式。
 public struct ToolSchema: ContentModel {

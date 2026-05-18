@@ -154,27 +154,51 @@ public final class AgentExecutor: Sendable {
                             continuation: continuation
                         )
 
-                        let toolCalls = final.toolCalls ?? []
+                        let rawToolCalls = final.toolCalls ?? []
 
                         // No tool calls → this assistant message is the final answer; loop ends.
-                        if toolCalls.isEmpty {
+                        if rawToolCalls.isEmpty {
                             self.logger.info("No tool calls; final answer after \(thoughtCount) thought(s)")
                             continuation.finish()
                             return
                         }
 
+                        var invalidArgumentsByToolCallID: [String: String] = [:]
+                        let toolCalls = rawToolCalls.map { toolCall -> ToolCall in
+                            guard !toolCall.hasProviderSafeArguments else {
+                                return toolCall
+                            }
+
+                            var safeToolCall = toolCall
+                            safeToolCall.arguments = toolCall.providerSafeArguments
+                            invalidArgumentsByToolCallID[toolCall.id] = toolCall.arguments
+                            self.logger.warning("Tool \(toolCall.name) returned invalid JSON arguments; replacing with {} for provider history")
+                            return safeToolCall
+                        }
+
                         // Has tool calls → record the assistant decision + execute each tool.
-                        context.append(ChatMessageContent(
+                        let assistantDecision = ChatMessageContent(
                             id: final.id,
                             role: .assistant,
                             content: final.content,
                             toolCalls: toolCalls
-                        ))
+                        )
+                        if !invalidArgumentsByToolCallID.isEmpty {
+                            continuation.yield(.content(assistantDecision))
+                        }
+                        context.append(assistantDecision)
 
                         for toolCall in toolCalls {
                             let result: ToolResult
                             do {
-                                if let tool = tools.first(where: { $0.name == toolCall.name }) {
+                                if let invalidArguments = invalidArgumentsByToolCallID[toolCall.id] {
+                                    result = .text("""
+                                    Tool execution failed: the model produced invalid JSON arguments for '\(toolCall.name)'.
+                                    Raw arguments prefix: \(String(invalidArguments.prefix(500)))
+                                    Retry this tool call with a complete JSON object matching the tool schema.
+                                    """)
+                                    self.logger.warning("Skipped tool \(toolCall.name) execution because arguments were invalid JSON")
+                                } else if let tool = tools.first(where: { $0.name == toolCall.name }) {
                                     // Approval gate: 工具声明 requiresApproval 且 handler 非空时,
                                     // 在 execute 之前 raise 给客户端等用户决策。
                                     // approveAlways 命中过的工具直接放行, 不再问。
