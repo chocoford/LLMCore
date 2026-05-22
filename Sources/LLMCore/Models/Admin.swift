@@ -42,6 +42,7 @@ public struct UserIdentityResponse: ContentModel {
     public let verified: Bool
     public let profile: UserIdentityProfile?
     public let appConfigId: UUID?
+    public let environment: SubscriptionEnvironment?
 
     public init(
         id: UUID,
@@ -50,7 +51,8 @@ public struct UserIdentityResponse: ContentModel {
         externalId: String,
         verified: Bool,
         profile: UserIdentityProfile? = nil,
-        appConfigId: UUID? = nil
+        appConfigId: UUID? = nil,
+        environment: SubscriptionEnvironment? = nil
     ) {
         self.id = id
         self.userId = userId
@@ -59,6 +61,7 @@ public struct UserIdentityResponse: ContentModel {
         self.verified = verified
         self.profile = profile
         self.appConfigId = appConfigId
+        self.environment = environment
     }
 }
 
@@ -90,6 +93,7 @@ public struct CreditTransactionResponse: ContentModel {
     public let transactionId: String?
     public let reason: String?
     public let metadata: String?  // JSON string
+    public let environment: String?
     public let createdAt: Date?
 
     public init(
@@ -100,6 +104,7 @@ public struct CreditTransactionResponse: ContentModel {
         transactionId: String?,
         reason: String?,
         metadata: String?,
+        environment: String? = nil,
         createdAt: Date?
     ) {
         self.id = id
@@ -109,6 +114,7 @@ public struct CreditTransactionResponse: ContentModel {
         self.transactionId = transactionId
         self.reason = reason
         self.metadata = metadata
+        self.environment = environment
         self.createdAt = createdAt
     }
 }
@@ -443,6 +449,7 @@ public struct PayOrderResponse: ContentModel {
     public let status: PayOrderStatus
     public let providerTransactionId: String?
     public let providerData: String?
+    public let environment: String?
     public let createdAt: Date?
     public let paidAt: Date?
 
@@ -460,6 +467,7 @@ public struct PayOrderResponse: ContentModel {
         status: PayOrderStatus,
         providerTransactionId: String?,
         providerData: String?,
+        environment: String? = nil,
         createdAt: Date?,
         paidAt: Date?
     ) {
@@ -476,6 +484,7 @@ public struct PayOrderResponse: ContentModel {
         self.status = status
         self.providerTransactionId = providerTransactionId
         self.providerData = providerData
+        self.environment = environment
         self.createdAt = createdAt
         self.paidAt = paidAt
     }

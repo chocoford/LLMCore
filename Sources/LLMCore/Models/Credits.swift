@@ -259,6 +259,7 @@ public struct CreditsTransaction: ContentModel, Identifiable {
     public var reason: String?             // Human-readable reason
     public var createdAt: Date
     public var metadata: [String : AnyCodable]?         // Additional info from client-side source
+    public var environment: String?
 
     public init(
         id: String,
@@ -267,7 +268,8 @@ public struct CreditsTransaction: ContentModel, Identifiable {
         transactionID: String? = nil,
         reason: String? = nil,
         createdAt: Date,
-        metadata: [String : AnyCodable]?
+        metadata: [String : AnyCodable]?,
+        environment: String? = nil
     ) {
         self.id = id
         self.type = type
@@ -276,6 +278,7 @@ public struct CreditsTransaction: ContentModel, Identifiable {
         self.reason = reason
         self.createdAt = createdAt
         self.metadata = metadata
+        self.environment = environment
     }
 }
 
