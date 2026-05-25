@@ -328,6 +328,7 @@ public struct SubscriptionStatsProblemSignals: ContentModel {
 
 public struct SubscriptionStatsOverviewResponse: ContentModel {
     public let environment: String
+    public let appConfigId: UUID?
     public let days: Int
     public let from: Date
     public let to: Date
@@ -346,6 +347,7 @@ public struct SubscriptionStatsOverviewResponse: ContentModel {
 
     public init(
         environment: String,
+        appConfigId: UUID? = nil,
         days: Int,
         from: Date,
         to: Date,
@@ -363,6 +365,7 @@ public struct SubscriptionStatsOverviewResponse: ContentModel {
         problemSignals: SubscriptionStatsProblemSignals
     ) {
         self.environment = environment
+        self.appConfigId = appConfigId
         self.days = days
         self.from = from
         self.to = to
