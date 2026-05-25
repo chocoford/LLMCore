@@ -805,3 +805,31 @@ public struct LogHistoryResponse: ContentModel {
         self.pageSize = pageSize
     }
 }
+
+public struct LogTimelineBucketResponse: ContentModel {
+    public let start: Date
+    public let end: Date
+    public let count: Int
+    public let levelCounts: [String: Int]
+
+    public init(start: Date, end: Date, count: Int, levelCounts: [String: Int]) {
+        self.start = start
+        self.end = end
+        self.count = count
+        self.levelCounts = levelCounts
+    }
+}
+
+public struct LogTimelineResponse: ContentModel {
+    public let buckets: [LogTimelineBucketResponse]
+    public let totalCount: Int
+    public let start: Date
+    public let end: Date
+
+    public init(buckets: [LogTimelineBucketResponse], totalCount: Int, start: Date, end: Date) {
+        self.buckets = buckets
+        self.totalCount = totalCount
+        self.start = start
+        self.end = end
+    }
+}

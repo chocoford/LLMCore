@@ -165,6 +165,34 @@ public struct LLMCallLogsResponse: ContentModel {
     }
 }
 
+public struct LLMCallLogsTimelineBucketResponse: ContentModel {
+    public let start: Date
+    public let end: Date
+    public let count: Int
+    public let categoryCounts: [String: Int]
+
+    public init(start: Date, end: Date, count: Int, categoryCounts: [String: Int]) {
+        self.start = start
+        self.end = end
+        self.count = count
+        self.categoryCounts = categoryCounts
+    }
+}
+
+public struct LLMCallLogsTimelineResponse: ContentModel {
+    public let buckets: [LLMCallLogsTimelineBucketResponse]
+    public let totalCount: Int
+    public let start: Date
+    public let end: Date
+
+    public init(buckets: [LLMCallLogsTimelineBucketResponse], totalCount: Int, start: Date, end: Date) {
+        self.buckets = buckets
+        self.totalCount = totalCount
+        self.start = start
+        self.end = end
+    }
+}
+
 public struct LLMCallLogResponse: ContentModel {
     public let id: UUID
     public let userIdentityID: UUID
