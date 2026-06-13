@@ -14,8 +14,9 @@ public struct ChatRequest<T: ContentModel>: ContentModel {
     public var messages: [ChatMessageContent]
     public var metadata: T?
     /// 可选的领域 agent 标识。传了之后服务端会:
-    ///   1. 校验 model 是否在该 agent 的 allowedModels 内
-    ///   2. 剥掉 messages 里所有 system 消息, 注入服务端持有的 systemPrompt
+    ///   1. 校验 model 是否匹配该 agent 的 modelProfiles
+    ///   2. 校验匹配 profile 的服务端要求(例如 plan gate)
+    ///   3. 剥掉 messages 里所有 system 消息, 注入服务端持有的 systemPrompt
     /// 客户端不需要也不应该自己拼 system prompt。
     public var agentID: String?
     /// 客户端声明的工具列表。服务端拿到后翻译成 OpenAI/Anthropic 的 tools 字段,
