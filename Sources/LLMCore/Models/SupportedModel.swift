@@ -37,6 +37,7 @@ public enum SupportedModel: ContentModel {
     case nanoBanana2
 
     // --- Minimax ---
+    case minimaxM3
     case minimaxM2_7
     case minimaxM2_5
     case minimaxM2
@@ -75,6 +76,7 @@ public enum SupportedModel: ContentModel {
             case .nanoBananaFree: return "google/gemini-2.5-flash-image-preview:free"
             case .nanoBanana: return "google/gemini-2.5-flash-image-preview"
             case .nanoBanana2: return "google/gemini-3.1-flash-image-preview"
+            case .minimaxM3: return "minimax/minimax-m3"
             case .minimaxM2_7: return "minimax/minimax-m2.7"
             case .minimaxM2_5: return "minimax/minimax-m2.5"
             case .minimaxM2: return "minimax/minimax-m2"
@@ -109,6 +111,7 @@ public enum SupportedModel: ContentModel {
             case "google/gemini-2.5-flash-image-preview:free": self = .nanoBananaFree
             case "google/gemini-2.5-flash-image-preview": self = .nanoBanana
             case "google/gemini-3.1-flash-image-preview": self = .nanoBanana2
+            case "minimax/minimax-m3": self = .minimaxM3
             case "minimax/minimax-m2.7": self = .minimaxM2_7
             case "minimax/minimax-m2.5": self = .minimaxM2_5
             case "minimax/minimax-m2": self = .minimaxM2
@@ -174,7 +177,7 @@ public enum SupportedModel: ContentModel {
                 return true
 
             // --- Minimax (不确定, 先 true 方便测试; 实测确认后再 toggle) ---
-            case .minimaxM2_7, .minimaxM2_5, .minimaxM2:
+            case .minimaxM3, .minimaxM2_7, .minimaxM2_5, .minimaxM2:
                 return true
 
             // --- Kimi ---
@@ -190,6 +193,8 @@ public enum SupportedModel: ContentModel {
                 return false
 
             // --- XiaoMi ---
+            case .mimoV2_5Pro:
+                return false
             case .mimoV2_5:
                 return true
 
@@ -240,6 +245,8 @@ public enum SupportedModel: ContentModel {
                 return 32_768
 
             // --- Minimax ---
+            case .minimaxM3:
+                return 1_048_576
             case .minimaxM2, .minimaxM2_5, .minimaxM2_7:
                 return 196_608
 
@@ -289,6 +296,7 @@ extension SupportedModel {
             case .nanoBananaFree: return "Nano Banana (Free)"
             case .nanoBanana: return "Nano Banana"
             case .nanoBanana2: return "Nano Banana 2"
+            case .minimaxM3: return "Minimax-M3"
             case .minimaxM2_7: return "Minimax-M2.7" 
             case .minimaxM2_5: return "Minimax-M2.5"
             case .minimaxM2: return "Minimax-M2"
@@ -313,7 +321,7 @@ extension SupportedModel {
                 return "Mistral"
             case .gemini3_1ProPreview, .gemini3FlashPreview, .nanoBananaFree, .nanoBanana, .nanoBanana2:
                 return "Google"
-            case .minimaxM2_7, .minimaxM2_5, .minimaxM2:
+            case .minimaxM3, .minimaxM2_7, .minimaxM2_5, .minimaxM2:
                 return "Minimax"
             case .kimiK2_6:
                 return "MoonshotAI"
@@ -344,7 +352,7 @@ extension SupportedModel {
             .claudeHaiku4_5, .claudeOpus4_6, .claudeOpus4_7, .claudeSonnet4_6,
             .gemini3_1ProPreview, .gemini3FlashPreview,
             .mistral7b, .mixtral8x7b,
-            .minimaxM2_7, .minimaxM2_5, .minimaxM2,
+            .minimaxM3, .minimaxM2_7, .minimaxM2_5, .minimaxM2,
             .kimiK2_6,
             .qwen3_6Plus,
             .hy3Preview,
