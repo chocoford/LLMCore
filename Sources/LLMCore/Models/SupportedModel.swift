@@ -190,7 +190,7 @@ public enum SupportedModel: ContentModel {
                 return false
 
             // --- XiaoMi ---
-            case .mimoV2_5, .mimoV2_5Pro:
+            case .mimoV2_5:
                 return true
 
             // --- 未知模型 ---
