@@ -51,6 +51,7 @@ public enum SupportedModel: ContentModel {
     case hy3Preview
 
     // --- Xiaomi ---
+    case mimoV2_5
     case mimoV2_5Pro
 
     case other(String)
@@ -80,6 +81,7 @@ public enum SupportedModel: ContentModel {
             case .kimiK2_6: return "moonshotai/kimi-k2.6"
             case .qwen3_6Plus: return "qwen/qwen3.6-plus"
             case .hy3Preview: return "tencent/hy3-preview"
+            case .mimoV2_5: return "xiaomi/mimo-v2.5"
             case .mimoV2_5Pro: return "xiaomi/mimo-v2.5-pro"
             case .other(let value): return value
         }
@@ -113,6 +115,7 @@ public enum SupportedModel: ContentModel {
             case "moonshotai/kimi-k2.6": self = .kimiK2_6
             case "qwen/qwen3.6-plus": self = .qwen3_6Plus
             case "tencent/hy3-preview": self = .hy3Preview
+            case "xiaomi/mimo-v2.5": self = .mimoV2_5
             case "xiaomi/mimo-v2.5-pro": self = .mimoV2_5Pro
             default: self = .other(rawValue)
         }
@@ -187,7 +190,7 @@ public enum SupportedModel: ContentModel {
                 return false
 
             // --- XiaoMi ---
-            case .mimoV2_5Pro:
+            case .mimoV2_5, .mimoV2_5Pro:
                 return true
 
             // --- 未知模型 ---
@@ -253,7 +256,7 @@ public enum SupportedModel: ContentModel {
                 return 262_144
 
             // --- Xiaomi ---
-            case .mimoV2_5Pro:
+            case .mimoV2_5, .mimoV2_5Pro:
                 return 1_048_576
 
             // --- 未知模型 ---
@@ -292,6 +295,7 @@ extension SupportedModel {
             case .kimiK2_6: return "Kimi K2.6"
             case .qwen3_6Plus: return "Qwen3.6 Plus"
             case .hy3Preview: return "HY3 Preview"
+            case .mimoV2_5: return "MIMO v2.5"
             case .mimoV2_5Pro: return "MIMO v2.5 Pro"
 
             case .other(let value): return value
@@ -317,7 +321,7 @@ extension SupportedModel {
                 return "Qwen"
             case .hy3Preview:
                 return "Tencent"
-            case .mimoV2_5Pro:
+            case .mimoV2_5, .mimoV2_5Pro:
                 return "Xiaomi"
             case .other:
                 return "Other"
@@ -344,7 +348,7 @@ extension SupportedModel {
             .kimiK2_6,
             .qwen3_6Plus,
             .hy3Preview,
-            .mimoV2_5Pro,
+            .mimoV2_5, .mimoV2_5Pro,
             // Image models (也算聊天模型, 因为它们支持 vision 输入):
             .nanoBanana, .nanoBananaFree, .nanoBanana2,
         ]
