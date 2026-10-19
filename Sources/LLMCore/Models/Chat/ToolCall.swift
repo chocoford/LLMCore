@@ -24,10 +24,15 @@ public struct ToolCall: ContentModel {
     /// 客户端 `Tool.execute(_:)` 接收的就是这个字符串。
     public var arguments: String
 
-    public init(id: String, name: String, arguments: String) {
+    /// Opaque, non-secret provider continuation data (for example Gemini thought signatures).
+    /// This is not credential storage. Forward unchanged when returning tool results.
+    public var providerMetadata: [String: String]?
+
+    public init(id: String, name: String, arguments: String, providerMetadata: [String: String]? = nil) {
         self.id = id
         self.name = name
         self.arguments = arguments
+        self.providerMetadata = providerMetadata
     }
 }
 
