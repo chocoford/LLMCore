@@ -70,4 +70,26 @@ struct LLMBYOKConfigurationTests {
         #expect(configuration.options.requiresDoneMarker)
         #expect(configuration.options.tokenLimitParameter == .maxTokens)
     }
+
+    @Test("Presets accept unknown model IDs without a vendor or catalog allowlist", arguments: LLMBYOKPreset.allCases)
+    func unrestrictedModelIDs(preset: LLMBYOKPreset) throws {
+        for model in ["future-family-v99", "team/future-model:preview", "another-vendor/new-model"] {
+            #expect(try preset.configuration.modelMapping.resolve(model) == model)
+        }
+    }
+
+    @Test("Old serialized model filters no longer restrict BYOK")
+    func legacyModelFilters() throws {
+        let data = Data(#"{"baseURL":"https://gateway.example.com/v1/","modelMapping":{"allowedPrefixes":["old-"],"deniedSubstrings":["future"]}}"#.utf8)
+        let configuration = try JSONDecoder().decode(LLMBYOKConfiguration.self, from: data)
+        #expect(try configuration.modelMapping.resolve("future-model") == "future-model")
+        let encoded = String(decoding: try JSONEncoder().encode(configuration), as: UTF8.self)
+        #expect(!encoded.contains("allowedPrefixes"))
+        #expect(!encoded.contains("deniedSubstrings"))
+    }
+
+    @Test("Only malformed or oversized model IDs are rejected", arguments: ["", " ", "model\nname", "model\u{0}", String(repeating: "m", count: 513)])
+    func malformedModelIDs(model: String) {
+        #expect(throws: LLMBYOKConfigurationValidationError.self) { try LLMBYOKConfiguration.ModelMapping().resolve(model) }
+    }
 }

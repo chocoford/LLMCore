@@ -11,19 +11,14 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
     public struct ModelMapping: Codable, Equatable, Sendable {
         public var aliases: [String: String]
         public var stripPrefix: String?
-        public var allowedPrefixes: [String]
-        public var deniedSubstrings: [String]
         public var replacePeriodsWithHyphens: Bool
 
         public init(
             aliases: [String: String] = [:], stripPrefix: String? = nil,
-            allowedPrefixes: [String] = [], deniedSubstrings: [String] = [],
             replacePeriodsWithHyphens: Bool = false
         ) {
             self.aliases = aliases
             self.stripPrefix = stripPrefix
-            self.allowedPrefixes = allowedPrefixes
-            self.deniedSubstrings = deniedSubstrings
             self.replacePeriodsWithHyphens = replacePeriodsWithHyphens
         }
 
@@ -31,8 +26,6 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
             let values = try decoder.container(keyedBy: CodingKeys.self)
             aliases = try values.decodeIfPresent([String: String].self, forKey: .aliases) ?? [:]
             stripPrefix = try values.decodeIfPresent(String.self, forKey: .stripPrefix)
-            allowedPrefixes = try values.decodeIfPresent([String].self, forKey: .allowedPrefixes) ?? []
-            deniedSubstrings = try values.decodeIfPresent([String].self, forKey: .deniedSubstrings) ?? []
             replacePeriodsWithHyphens = try values.decodeIfPresent(Bool.self, forKey: .replacePeriodsWithHyphens) ?? false
         }
 
@@ -40,9 +33,9 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
             var model = aliases[requestedModel] ?? requestedModel
             if let stripPrefix, model.hasPrefix(stripPrefix) { model.removeFirst(stripPrefix.count) }
             if replacePeriodsWithHyphens { model = model.replacingOccurrences(of: ".", with: "-") }
-            guard Self.validModel(model),
-                  allowedPrefixes.isEmpty || allowedPrefixes.contains(where: { model.hasPrefix($0) }),
-                  !deniedSubstrings.contains(where: { model.contains($0) }) else {
+            // Model availability, account permissions and modalities belong to the upstream.
+            // This value only normalizes IDs; it must not become a platform model catalog.
+            guard Self.validModel(model) else {
                 throw LLMBYOKConfigurationValidationError.invalidModel
             }
             return model
@@ -61,6 +54,7 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
         public var tokenLimitParameter: TokenLimitParameter
         public var preserveGoogleThoughtSignatures: Bool
         public var openRouterExtensions: Bool
+        /// Selects the existing OpenRouter-style image response adapter, not model permission.
         public var supportsImageGeneration: Bool
         public var requiresDoneMarker: Bool
         public var auxiliaryModel: String?
@@ -176,15 +170,15 @@ public enum LLMBYOKPreset: String, Codable, CaseIterable, Sendable {
         case .openAI:
             return .init(baseURL: URL(string: "https://api.openai.com/v1/")!, modelMapping: .init(
                 aliases: ["openai/gpt-4o-latest": "chatgpt-4o-latest", "gpt-4o-latest": "chatgpt-4o-latest"],
-                stripPrefix: "openai/", allowedPrefixes: ["gpt-", "chatgpt-", "o1", "o3", "o4"], deniedSubstrings: ["/", ":", "?", "#", "\\"]
+                stripPrefix: "openai/"
             ), options: .init(sendStoreFalse: true))
         case .anthropic:
             return .init(baseURL: URL(string: "https://api.anthropic.com/v1/")!, modelMapping: .init(
-                stripPrefix: "anthropic/", allowedPrefixes: ["claude-"], deniedSubstrings: ["/", ":", "?", "#", "\\"], replacePeriodsWithHyphens: true
+                stripPrefix: "anthropic/", replacePeriodsWithHyphens: true
             ), options: .init(outputTokenLimit: 8192))
         case .gemini:
             return .init(baseURL: URL(string: "https://generativelanguage.googleapis.com/v1beta/openai/")!, modelMapping: .init(
-                stripPrefix: "google/", allowedPrefixes: ["gemini-"], deniedSubstrings: ["/", ":", "?", "#", "\\", "image"]
+                stripPrefix: "google/"
             ), options: .init(preserveGoogleThoughtSignatures: true))
         }
     }
@@ -202,7 +196,7 @@ public enum LLMBYOKConfigurationValidationError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .invalidEndpoint: return "BYOK requires an HTTPS API root without URL credentials, query, fragment or encoded path."
-        case .invalidModel: return "The requested model does not match this BYOK configuration."
+        case .invalidModel: return "A BYOK model ID must be non-empty printable ASCII and at most 512 bytes."
         case .invalidConfiguration: return "The BYOK configuration is invalid or too large."
         case .unsupportedVersion: return "The BYOK configuration version is not supported."
         }

@@ -18,10 +18,10 @@ public struct DomainAgentConfigResponse: ContentModel {
     /// Legacy fallback for old clients. New clients should prefer `modelProfiles`.
     public var defaultModel: SupportedModel
     /// Legacy fallback for old clients. New clients should prefer `modelProfiles`.
-    /// The server remains authoritative and validates the selected model on `/chat`.
+    /// The server validates platform-billed models on `/chat`; this is not a BYOK allowlist.
     public var allowedModels: [SupportedModel]
 
-    /// Server-defined model menu for this domain agent.
+    /// Server-defined platform-billed model menu for this domain agent (not a BYOK allowlist).
     /// Client presentation should be keyed by `(agentID, profile.id)` for localization.
     public var modelProfiles: [DomainModelProfile]?
     /// Preferred profile id. If absent or unknown, clients should fall back to the lowest-rank
@@ -47,7 +47,7 @@ public struct DomainModelProfile: ContentModel, Identifiable {
     public var model: SupportedModel
     /// Lower ranks are preferred for fallback / display ordering.
     public var rank: Int
-    /// UI hint only. The server still validates requirements on `/chat`.
+    /// UI hint only. The server still validates requirements for platform-billed `/chat`.
     public var isVisible: Bool
     public var requirements: ModelProfileRequirements
     public var capabilities: ModelProfileCapabilities
@@ -73,7 +73,7 @@ public struct DomainModelProfile: ContentModel, Identifiable {
 }
 
 public struct ModelProfileRequirements: ContentModel {
-    /// nil means no plan gate. Example: "max".
+    /// Platform model-tier gate, not a BYOK or agent/tool entitlement. Example: "max".
     public var plan: String?
 
     public init(plan: String? = nil) {
