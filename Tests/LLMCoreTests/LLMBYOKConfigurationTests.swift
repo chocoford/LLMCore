@@ -92,4 +92,39 @@ struct LLMBYOKConfigurationTests {
     func malformedModelIDs(model: String) {
         #expect(throws: LLMBYOKConfigurationValidationError.self) { try LLMBYOKConfiguration.ModelMapping().resolve(model) }
     }
+
+    @Test("Discovery has protocol defaults and preset-specific native authentication")
+    func modelDiscoveryDefaults() throws {
+        let old = try JSONDecoder().decode(LLMBYOKConfiguration.self, from: Data(#"{"baseURL":"https://gateway.example.com/v1/"}"#.utf8))
+        #expect(old.modelDiscovery == .init())
+        #expect(old.modelsURL?.absoluteString == "https://gateway.example.com/v1/models")
+        #expect(LLMBYOKConfiguration.anthropic.modelDiscovery?.format == .anthropic)
+        #expect(LLMBYOKConfiguration.gemini.modelsURL?.path == "/v1beta/openai/models")
+        let custom = LLMBYOKConfiguration(baseURL: URL(string: "https://gateway.example.com/custom/v1/")!, modelDiscovery: .init(path: "catalog/models"))
+        try custom.validate()
+        #expect(custom.modelsURL?.path == "/custom/v1/catalog/models")
+    }
+
+    @Test("Explicitly disabling discovery survives serialization and does not restrict models")
+    func disabledModelDiscovery() throws {
+        let configuration = LLMBYOKConfiguration(baseURL: URL(string: "https://gateway.example.com/v1/")!, modelDiscovery: nil)
+        let restored = try JSONDecoder().decode(LLMBYOKConfiguration.self, from: JSONEncoder().encode(configuration))
+        try restored.validate()
+        #expect(restored.modelDiscovery == nil)
+        #expect(restored.modelsURL == nil)
+        #expect(try restored.modelMapping.resolve("future/model") == "future/model")
+        let model = LLMBYOKModel(id: "future/model", name: "Future model")
+        #expect(model.model == .other("future/model"))
+        #expect(model.displayName == "Future model")
+        #expect(LLMBYOKModel(id: "unknown").displayName == "unknown")
+    }
+
+    @Test("Discovery paths cannot change origin or escape the configured API root", arguments: [
+        "", "/models", "../models", "models/../secret", "https://evil.example/models", "//evil.example/models",
+        "models?key=secret", "models#secret", "models/%2e%2e/secret", "models//user"
+    ])
+    func unsafeDiscoveryPath(path: String) {
+        let configuration = LLMBYOKConfiguration(baseURL: URL(string: "https://gateway.example.com/v1/")!, modelDiscovery: .init(path: path))
+        #expect(throws: LLMBYOKConfigurationValidationError.self) { try configuration.validate() }
+    }
 }

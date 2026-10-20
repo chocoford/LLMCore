@@ -8,6 +8,33 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
         case maxCompletionTokens = "max_completion_tokens"
     }
 
+    /// Optional discovery only; never an allowlist for inference.
+    public struct ModelDiscovery: Codable, Equatable, Sendable {
+        public enum Format: String, Codable, Sendable { case openAI = "openai", anthropic }
+        /// Relative to baseURL, without a leading slash, query or URL credentials.
+        public var path: String
+        public var format: Format
+
+        public init(path: String = "models", format: Format = .openAI) {
+            self.path = path
+            self.format = format
+        }
+
+        public init(from decoder: any Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            path = try values.decodeIfPresent(String.self, forKey: .path) ?? "models"
+            format = try values.decodeIfPresent(Format.self, forKey: .format) ?? .openAI
+        }
+
+        func validate() throws {
+            guard !path.isEmpty, path.utf8.count <= 512,
+                  path.utf8.allSatisfy({ (45...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) || [95, 126].contains($0) }),
+                  path.split(separator: "/", omittingEmptySubsequences: false).allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }) else {
+                throw LLMBYOKConfigurationValidationError.invalidConfiguration
+            }
+        }
+    }
+
     public struct ModelMapping: Codable, Equatable, Sendable {
         public var aliases: [String: String]
         public var stripPrefix: String?
@@ -98,10 +125,17 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
     public var defaultModel: String?
     public var modelMapping: ModelMapping
     public var options: CompatibilityOptions
+    /// nil disables discovery without affecting arbitrary model IDs or inference.
+    public var modelDiscovery: ModelDiscovery?
+
+    private enum CodingKeys: String, CodingKey {
+        case version, baseURL, apiFormat, defaultModel, modelMapping, options, modelDiscovery
+    }
 
     public init(
         baseURL: URL, apiFormat: APIFormat = .chatCompletions, defaultModel: String? = nil,
-        modelMapping: ModelMapping = .init(), options: CompatibilityOptions = .init()
+        modelMapping: ModelMapping = .init(), options: CompatibilityOptions = .init(),
+        modelDiscovery: ModelDiscovery? = .init()
     ) {
         self.version = 1
         self.baseURL = baseURL
@@ -109,6 +143,7 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
         self.defaultModel = defaultModel
         self.modelMapping = modelMapping
         self.options = options
+        self.modelDiscovery = modelDiscovery
     }
 
     public init(from decoder: any Decoder) throws {
@@ -119,10 +154,30 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
         defaultModel = try values.decodeIfPresent(String.self, forKey: .defaultModel)
         modelMapping = try values.decodeIfPresent(ModelMapping.self, forKey: .modelMapping) ?? .init()
         options = try values.decodeIfPresent(CompatibilityOptions.self, forKey: .options) ?? .init()
+        // Missing = backwards-compatible GET models; explicit null = disabled.
+        modelDiscovery = values.contains(.modelDiscovery)
+            ? try values.decodeIfPresent(ModelDiscovery.self, forKey: .modelDiscovery) : .init()
     }
 
+    // Keep an explicit null when disabled, rather than losing it through encodeIfPresent.
+    public func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(version, forKey: .version)
+        try values.encode(baseURL, forKey: .baseURL)
+        try values.encode(apiFormat, forKey: .apiFormat)
+        try values.encodeIfPresent(defaultModel, forKey: .defaultModel)
+        try values.encode(modelMapping, forKey: .modelMapping)
+        try values.encode(options, forKey: .options)
+        try values.encode(modelDiscovery, forKey: .modelDiscovery)
+    }
+
+    public var modelsURL: URL? { modelDiscovery.map { normalizedURL(baseURL.appendingPathComponent($0.path)) } }
+
     public var chatCompletionsURL: URL {
-        let url = baseURL.appendingPathComponent("chat/completions")
+        normalizedURL(baseURL.appendingPathComponent("chat/completions"))
+    }
+
+    private func normalizedURL(_ url: URL) -> URL {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
         components.scheme = components.scheme?.lowercased()
         components.host = components.host?.lowercased()
@@ -149,6 +204,7 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
         if let limit = options.outputTokenLimit, !(1...1_000_000).contains(limit) {
             throw LLMBYOKConfigurationValidationError.invalidConfiguration
         }
+        try modelDiscovery?.validate()
         for value in [defaultModel, options.auxiliaryModel].compactMap({ $0 }) {
             _ = try modelMapping.resolve(value)
         }
@@ -175,7 +231,7 @@ public enum LLMBYOKPreset: String, Codable, CaseIterable, Sendable {
         case .anthropic:
             return .init(baseURL: URL(string: "https://api.anthropic.com/v1/")!, modelMapping: .init(
                 stripPrefix: "anthropic/", replacePeriodsWithHyphens: true
-            ), options: .init(outputTokenLimit: 8192))
+            ), options: .init(outputTokenLimit: 8192), modelDiscovery: .init(format: .anthropic))
         case .gemini:
             return .init(baseURL: URL(string: "https://generativelanguage.googleapis.com/v1beta/openai/")!, modelMapping: .init(
                 stripPrefix: "google/"
