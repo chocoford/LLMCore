@@ -12,8 +12,48 @@ struct LLMBYOKConfigurationTests {
         let restored = try JSONDecoder().decode(LLMBYOKConfiguration.self, from: data)
         #expect(restored == configuration)
         #expect(restored.preset == preset)
+        #expect(!preset.displayName.isEmpty)
         #expect(restored.chatCompletionsURL.path.hasSuffix("/chat/completions"))
         #expect(!String(decoding: data, as: UTF8.self).contains("apiKey"))
+    }
+
+    @Test("Additional presets use official API roots, not aggregator/model-name routing", arguments: [
+        (LLMBYOKPreset.deepSeek, "https://api.deepseek.com/"),
+        (.xAI, "https://api.x.ai/v1/"), (.mistral, "https://api.mistral.ai/v1/"),
+        (.groq, "https://api.groq.com/openai/v1/"), (.together, "https://api.together.ai/v1/"),
+        (.fireworks, "https://api.fireworks.ai/inference/v1/"),
+        (.moonshot, "https://api.moonshot.ai/v1/"), (.moonshotChina, "https://api.moonshot.cn/v1/"),
+        (.zAI, "https://api.z.ai/api/paas/v4/"), (.zhipu, "https://open.bigmodel.cn/api/paas/v4/"),
+        (.dashScope, "https://dashscope.aliyuncs.com/compatible-mode/v1/"),
+        (.dashScopeInternational, "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/"),
+        (.miniMax, "https://api.minimax.io/v1/"), (.miniMaxChina, "https://api.minimax.cn/v1/"),
+        (.siliconFlow, "https://api.siliconflow.cn/v1/"), (.volcengine, "https://ark.cn-beijing.volces.com/api/v3/")
+    ])
+    func additionalPresetEndpoints(preset: LLMBYOKPreset, baseURL: String) throws {
+        try preset.configuration.validate()
+        #expect(preset.configuration.baseURL.absoluteString == baseURL)
+        #expect(preset.configuration.chatCompletionsURL.absoluteString == baseURL + "chat/completions")
+        #expect(!preset.configuration.options.openRouterExtensions)
+        #expect(!preset.configuration.options.supportsImageGeneration)
+    }
+
+    @Test("Regional keys/endpoints and namespaced model IDs are not silently interchanged")
+    func additionalPresetBoundaries() throws {
+        #expect(LLMBYOKConfiguration.moonshot.baseURL.host != LLMBYOKConfiguration.moonshotChina.baseURL.host)
+        #expect(LLMBYOKConfiguration.zAI.baseURL.host != LLMBYOKConfiguration.zhipu.baseURL.host)
+        #expect(LLMBYOKConfiguration.miniMax.baseURL.host != LLMBYOKConfiguration.miniMaxChina.baseURL.host)
+        #expect(LLMBYOKConfiguration.dashScope.baseURL.host != LLMBYOKConfiguration.dashScopeInternational.baseURL.host)
+        for configuration in [LLMBYOKConfiguration.groq, .together, .fireworks, .siliconFlow] {
+            #expect(try configuration.modelMapping.resolve("provider/model:preview") == "provider/model:preview")
+        }
+        for configuration in [LLMBYOKConfiguration.fireworks, .zAI, .zhipu, .miniMax, .miniMaxChina, .volcengine] {
+            #expect(configuration.modelDiscovery == nil)
+            #expect(try configuration.modelMapping.resolve("manual-model") == "manual-model")
+        }
+        #expect(!LLMBYOKConfiguration.mistral.options.includeUsage)
+        #expect(try LLMBYOKConfiguration.deepSeek.modelMapping.resolve("deepseek/native-model") == "native-model")
+        #expect(try LLMBYOKConfiguration.xAI.modelMapping.resolve("x-ai/native-model") == "native-model")
+        #expect(try LLMBYOKConfiguration.mistral.modelMapping.resolve("mistralai/native-model") == "native-model")
     }
 
     @Test("Custom models don't need a vendor enum")
