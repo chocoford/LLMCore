@@ -21,13 +21,11 @@ struct LLMBYOKConfigurationTests {
         (LLMBYOKPreset.deepSeek, "https://api.deepseek.com/"),
         (.xAI, "https://api.x.ai/v1/"), (.mistral, "https://api.mistral.ai/v1/"),
         (.groq, "https://api.groq.com/openai/v1/"), (.together, "https://api.together.ai/v1/"),
-        (.fireworks, "https://api.fireworks.ai/inference/v1/"),
         (.moonshot, "https://api.moonshot.ai/v1/"), (.moonshotChina, "https://api.moonshot.cn/v1/"),
-        (.zAI, "https://api.z.ai/api/paas/v4/"), (.zhipu, "https://open.bigmodel.cn/api/paas/v4/"),
         (.dashScope, "https://dashscope.aliyuncs.com/compatible-mode/v1/"),
         (.dashScopeInternational, "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/"),
         (.miniMax, "https://api.minimax.io/v1/"), (.miniMaxChina, "https://api.minimax.cn/v1/"),
-        (.siliconFlow, "https://api.siliconflow.cn/v1/"), (.volcengine, "https://ark.cn-beijing.volces.com/api/v3/")
+        (.siliconFlow, "https://api.siliconflow.cn/v1/")
     ])
     func additionalPresetEndpoints(preset: LLMBYOKPreset, baseURL: String) throws {
         try preset.configuration.validate()
@@ -40,20 +38,29 @@ struct LLMBYOKConfigurationTests {
     @Test("Regional keys/endpoints and namespaced model IDs are not silently interchanged")
     func additionalPresetBoundaries() throws {
         #expect(LLMBYOKConfiguration.moonshot.baseURL.host != LLMBYOKConfiguration.moonshotChina.baseURL.host)
-        #expect(LLMBYOKConfiguration.zAI.baseURL.host != LLMBYOKConfiguration.zhipu.baseURL.host)
         #expect(LLMBYOKConfiguration.miniMax.baseURL.host != LLMBYOKConfiguration.miniMaxChina.baseURL.host)
         #expect(LLMBYOKConfiguration.dashScope.baseURL.host != LLMBYOKConfiguration.dashScopeInternational.baseURL.host)
-        for configuration in [LLMBYOKConfiguration.groq, .together, .fireworks, .siliconFlow] {
+        for configuration in [LLMBYOKConfiguration.groq, .together, .siliconFlow] {
             #expect(try configuration.modelMapping.resolve("provider/model:preview") == "provider/model:preview")
-        }
-        for configuration in [LLMBYOKConfiguration.fireworks, .zAI, .zhipu, .miniMax, .miniMaxChina, .volcengine] {
-            #expect(configuration.modelDiscovery == nil)
-            #expect(try configuration.modelMapping.resolve("manual-model") == "manual-model")
         }
         #expect(!LLMBYOKConfiguration.mistral.options.includeUsage)
         #expect(try LLMBYOKConfiguration.deepSeek.modelMapping.resolve("deepseek/native-model") == "native-model")
         #expect(try LLMBYOKConfiguration.xAI.modelMapping.resolve("x-ai/native-model") == "native-model")
         #expect(try LLMBYOKConfiguration.mistral.modelMapping.resolve("mistralai/native-model") == "native-model")
+    }
+
+    @Test("The preset menu exposes only integrated catalogs")
+    func integratedPresetCatalog() {
+        #expect(Set(LLMBYOKPreset.allCases.map(\.rawValue)) == Set([
+            "openrouter", "openai", "anthropic", "gemini", "deepseek", "xai", "mistral",
+            "groq", "together", "moonshot", "moonshot-china", "dashscope",
+            "dashscope-international", "minimax", "minimax-china", "siliconflow"
+        ]))
+        for preset in LLMBYOKPreset.allCases {
+            #expect(preset.configuration.modelDiscovery == .init(format: preset == .anthropic ? .anthropic : .openAI))
+        }
+        #expect(LLMBYOKConfiguration.miniMax.modelsURL?.absoluteString == "https://api.minimax.io/v1/models")
+        #expect(LLMBYOKConfiguration.miniMaxChina.modelsURL?.absoluteString == "https://api.minimax.cn/v1/models")
     }
 
     @Test("Custom models don't need a vendor enum")

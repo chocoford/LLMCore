@@ -216,12 +216,13 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
 
 public enum LLMBYOKPreset: String, Codable, CaseIterable, Sendable {
     case openRouter = "openrouter", openAI = "openai", anthropic, gemini
-    case deepSeek = "deepseek", xAI = "xai", mistral, groq, together, fireworks
+    // New presets must reuse the generic chat and GET models contracts. Keep
+    // unverified catalogs and account-scoped management APIs out of this menu.
+    case deepSeek = "deepseek", xAI = "xai", mistral, groq, together
     case moonshot, moonshotChina = "moonshot-china"
-    case zAI = "zai", zhipu
     case dashScope = "dashscope", dashScopeInternational = "dashscope-international"
     case miniMax = "minimax", miniMaxChina = "minimax-china"
-    case siliconFlow = "siliconflow", volcengine
+    case siliconFlow = "siliconflow"
 
     public var displayName: String {
         switch self {
@@ -234,17 +235,13 @@ public enum LLMBYOKPreset: String, Codable, CaseIterable, Sendable {
         case .mistral: return "Mistral AI"
         case .groq: return "Groq"
         case .together: return "Together AI"
-        case .fireworks: return "Fireworks AI"
         case .moonshot: return "Moonshot / Kimi (International)"
         case .moonshotChina: return "Moonshot / Kimi (China)"
-        case .zAI: return "Z.AI (International)"
-        case .zhipu: return "Zhipu / GLM (China)"
         case .dashScope: return "Alibaba Cloud / Qwen (China)"
         case .dashScopeInternational: return "Alibaba Cloud / Qwen (Singapore)"
         case .miniMax: return "MiniMax (International)"
         case .miniMaxChina: return "MiniMax (China)"
         case .siliconFlow: return "SiliconFlow"
-        case .volcengine: return "Volcengine Ark / Doubao"
         }
     }
 
@@ -279,23 +276,10 @@ public enum LLMBYOKPreset: String, Codable, CaseIterable, Sendable {
             return .init(baseURL: URL(string: "https://api.groq.com/openai/v1/")!)
         case .together:
             return .init(baseURL: URL(string: "https://api.together.ai/v1/")!)
-        case .fireworks:
-            // Its documented model catalog is an account-scoped management API, not
-            // GET inference/v1/models. Keep manual model IDs instead of guessing a route.
-            return .init(baseURL: URL(string: "https://api.fireworks.ai/inference/v1/")!,
-                         options: .init(includeUsage: false), modelDiscovery: nil)
         case .moonshot:
             return .init(baseURL: URL(string: "https://api.moonshot.ai/v1/")!, modelMapping: .init(stripPrefix: "moonshotai/"))
         case .moonshotChina:
             return .init(baseURL: URL(string: "https://api.moonshot.cn/v1/")!, modelMapping: .init(stripPrefix: "moonshotai/"))
-        case .zAI:
-            return .init(baseURL: URL(string: "https://api.z.ai/api/paas/v4/")!, modelMapping: .init(
-                stripPrefix: "z-ai/"
-            ), options: .init(includeUsage: false), modelDiscovery: nil)
-        case .zhipu:
-            return .init(baseURL: URL(string: "https://open.bigmodel.cn/api/paas/v4/")!, modelMapping: .init(
-                stripPrefix: "z-ai/"
-            ), options: .init(includeUsage: false), modelDiscovery: nil)
         case .dashScope:
             // Shared DashScope entry point. Workspace-specific endpoints remain custom
             // configurations; their host must be explicitly trusted for Domain Agents.
@@ -303,17 +287,12 @@ public enum LLMBYOKPreset: String, Codable, CaseIterable, Sendable {
         case .dashScopeInternational:
             return .init(baseURL: URL(string: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/")!, modelMapping: .init(stripPrefix: "qwen/"))
         case .miniMax:
-            return .init(baseURL: URL(string: "https://api.minimax.io/v1/")!, modelDiscovery: nil)
+            return .init(baseURL: URL(string: "https://api.minimax.io/v1/")!)
         case .miniMaxChina:
-            return .init(baseURL: URL(string: "https://api.minimax.cn/v1/")!, modelDiscovery: nil)
+            return .init(baseURL: URL(string: "https://api.minimax.cn/v1/")!)
         case .siliconFlow:
             // Model IDs are namespaced, e.g. Qwen/... or deepseek-ai/...; do not strip them.
             return .init(baseURL: URL(string: "https://api.siliconflow.cn/v1/")!)
-        case .volcengine:
-            // The control-plane catalog is not an OpenAI GET models endpoint. Users
-            // may select a provider model ID or their own ep-... inference endpoint ID.
-            return .init(baseURL: URL(string: "https://ark.cn-beijing.volces.com/api/v3/")!,
-                         options: .init(includeUsage: false), modelDiscovery: nil)
         }
     }
 }
@@ -328,17 +307,13 @@ extension LLMBYOKConfiguration {
     public static var mistral: Self { LLMBYOKPreset.mistral.configuration }
     public static var groq: Self { LLMBYOKPreset.groq.configuration }
     public static var together: Self { LLMBYOKPreset.together.configuration }
-    public static var fireworks: Self { LLMBYOKPreset.fireworks.configuration }
     public static var moonshot: Self { LLMBYOKPreset.moonshot.configuration }
     public static var moonshotChina: Self { LLMBYOKPreset.moonshotChina.configuration }
-    public static var zAI: Self { LLMBYOKPreset.zAI.configuration }
-    public static var zhipu: Self { LLMBYOKPreset.zhipu.configuration }
     public static var dashScope: Self { LLMBYOKPreset.dashScope.configuration }
     public static var dashScopeInternational: Self { LLMBYOKPreset.dashScopeInternational.configuration }
     public static var miniMax: Self { LLMBYOKPreset.miniMax.configuration }
     public static var miniMaxChina: Self { LLMBYOKPreset.miniMaxChina.configuration }
     public static var siliconFlow: Self { LLMBYOKPreset.siliconFlow.configuration }
-    public static var volcengine: Self { LLMBYOKPreset.volcengine.configuration }
 }
 
 public enum LLMBYOKConfigurationValidationError: LocalizedError, Sendable {
