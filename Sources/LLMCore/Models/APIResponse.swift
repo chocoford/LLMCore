@@ -41,9 +41,12 @@ public struct APIResponse<T: LLMCore.ContentModel>: ContentModel {
 public struct APIError: ContentModel {
     public var code: Int
     public var message: String
+    /// Structured authorization failure, distinct from login and model-credit failures.
+    public var access: LLMAccessDecision?
     
-    public init(code: Int, message: String) {
+    public init(code: Int, message: String, access: LLMAccessDecision? = nil) {
         self.code = code
         self.message = message
+        self.access = access
     }
 }

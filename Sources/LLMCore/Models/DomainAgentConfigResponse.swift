@@ -73,11 +73,17 @@ public struct DomainModelProfile: ContentModel, Identifiable {
 }
 
 public struct ModelProfileRequirements: ContentModel {
-    /// Platform model-tier gate, not a BYOK or agent/tool entitlement. Example: "max".
+    /// Legacy opaque App-scoped requirement ID. Not a built-in plan name or level.
     public var plan: String?
+    public var accessRequirementIDs: [String]?
 
-    public init(plan: String? = nil) {
+    public var requiredAccessIDs: [String] {
+        Array(Set((accessRequirementIDs ?? []) + (plan.map { [$0] } ?? []))).sorted()
+    }
+
+    public init(plan: String? = nil, accessRequirementIDs: [String]? = nil) {
         self.plan = plan
+        self.accessRequirementIDs = accessRequirementIDs
     }
 }
 
