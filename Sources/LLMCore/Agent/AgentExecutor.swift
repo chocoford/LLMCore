@@ -189,6 +189,7 @@ public final class AgentExecutor: Sendable {
                         context.append(assistantDecision)
 
                         for toolCall in toolCalls {
+                            try Task.checkCancellation()
                             let result: ToolResult
                             do {
                                 if let invalidArguments = invalidArgumentsByToolCallID[toolCall.id] {
@@ -218,6 +219,7 @@ public final class AgentExecutor: Sendable {
                                             reason: toolReason ?? "Need approval to use \(tool.displayName)"
                                         )
                                         let decision = await handler(request)
+                                        try Task.checkCancellation()
                                         switch decision {
                                         case .approve:
                                             break
@@ -251,6 +253,7 @@ public final class AgentExecutor: Sendable {
                                     self.logger.error("Tool '\(toolCall.name)' not found")
                                 }
                             } catch {
+                                if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled { throw CancellationError() }
                                 result = .text("Tool execution failed: \(error.localizedDescription)")
                                 self.logger.error("Tool execution failed: \(error.localizedDescription)")
                             }

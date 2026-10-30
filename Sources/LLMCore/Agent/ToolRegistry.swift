@@ -53,7 +53,7 @@ public actor ToolRegistry {
     /// Generate tools description for system prompt
     /// - Parameter toolNames: Names of tools to include in the description
     /// - Returns: Formatted string describing the tools
-    public func generateToolsDescription(for toolNames: [String]) -> String {
+    public func generateToolsDescription(for toolNames: [String], nativeToolCalls: Bool = false) -> String {
         let selectedTools = get(toolNames)
         guard !selectedTools.isEmpty else {
             return ""
@@ -75,6 +75,16 @@ public actor ToolRegistry {
               Parameters: \(parametersJSON)
             """
         }.joined(separator: "\n")
+
+        if nativeToolCalls {
+            return """
+            Available local tools:
+            \(toolsDesc)
+
+            Call tools using native tool_calls with complete JSON arguments matching their schemas.
+            Do not simulate tool execution in text. When finished, answer the user in plain text without tool calls.
+            """
+        }
 
         return """
         You have access to the following tools:
