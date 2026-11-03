@@ -3,20 +3,24 @@ import Foundation
 /// A trusted, optional server capability. App-specific agent/profile IDs are data,
 /// never built-in product names, model tiers or subscription levels.
 public struct LLMAccessCapability: Codable, Equatable, Sendable, Identifiable {
-    public enum Kind: String, Codable, Sendable { case backendBYOK, modelAccess }
+    public enum Kind: String, Codable, Sendable { case backendBYOK, modelAccess, resourceAccess }
 
     public let id: String
     public let kind: Kind
     public let resource: LLMAccessResource
     public let requiredAccessIDs: [String]
     public let modelID: String?
+    public let binding: LLMAppResourceBinding?
+    public let descriptor: LLMAccessResourceDescriptor?
 
-    public init(id: String, kind: Kind, resource: LLMAccessResource, requiredAccessIDs: [String] = [], modelID: String? = nil) {
+    public init(id: String, kind: Kind, resource: LLMAccessResource, requiredAccessIDs: [String] = [], modelID: String? = nil,
+                binding: LLMAppResourceBinding? = nil, descriptor: LLMAccessResourceDescriptor? = nil) {
         self.id = id
         self.kind = kind
         self.resource = resource
         self.requiredAccessIDs = Array(Set(requiredAccessIDs)).sorted()
         self.modelID = modelID
+        self.binding = binding; self.descriptor = descriptor
     }
 
     public static var backendBYOK: Self {
@@ -45,6 +49,18 @@ public struct LLMAccessCapability: Codable, Equatable, Sendable, Identifiable {
             guard resource.kind == "agent", resource.action == "invoke", resource.billingSource == .platform,
                   let profileID = resource.modelProfileID, !requiredAccessIDs.isEmpty,
                   id == "model/\(resource.id)/\(profileID)" else { throw LLMAccessPolicyError.invalidConfiguration }
+        case .resourceAccess:
+            guard let binding, let descriptor, id == "resource/\(descriptor.id)",
+                  binding.resourceID == descriptor.id, resource == descriptor.resource,
+                  requiredAccessIDs == descriptor.requiredAccessIDs, modelID == descriptor.modelID else {
+                throw LLMAccessPolicyError.invalidConfiguration
+            }
+        }
+        if let binding, let descriptor {
+            try binding.validate(); try descriptor.validate()
+            guard binding.resourceID == descriptor.id, resource == descriptor.resource else {
+                throw LLMAccessPolicyError.invalidConfiguration
+            }
         }
     }
 }

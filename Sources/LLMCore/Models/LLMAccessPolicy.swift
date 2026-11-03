@@ -30,6 +30,12 @@ public struct LLMAccessResource: Codable, Equatable, Sendable {
         guard [kind, id, action].allSatisfy(LLMAccessPolicy.validIdentifier),
               modelProfileID.map(LLMAccessPolicy.validIdentifier) ?? true else { throw LLMAccessPolicyError.invalidConfiguration }
     }
+
+    public func matches(_ actual: LLMAccessResource) -> Bool {
+        kind == actual.kind && id == actual.id && action == actual.action
+            && (billingSource == nil || billingSource == actual.billingSource)
+            && (modelProfileID == nil || modelProfileID == actual.modelProfileID)
+    }
 }
 
 public struct LLMAccessRule: Codable, Equatable, Sendable, Identifiable {
@@ -42,9 +48,7 @@ public struct LLMAccessRule: Codable, Equatable, Sendable, Identifiable {
         self.id = id; self.resource = resource; self.effect = effect; self.requirementIDs = requirementIDs
     }
     public func matches(_ actual: LLMAccessResource) -> Bool {
-        resource.kind == actual.kind && resource.id == actual.id && resource.action == actual.action
-            && (resource.billingSource == nil || resource.billingSource == actual.billingSource)
-            && (resource.modelProfileID == nil || resource.modelProfileID == actual.modelProfileID)
+        resource.matches(actual)
     }
 }
 
@@ -53,8 +57,12 @@ public struct LLMAccessPolicy: Codable, Equatable, Sendable {
     public var version: Int
     public var requirements: [LLMAccessRequirement]
     public var rules: [LLMAccessRule]
-    public init(requirements: [LLMAccessRequirement] = [], rules: [LLMAccessRule] = []) {
-        version = 1; self.requirements = requirements; self.rules = rules
+    /// nil preserves legacy rollout behavior. Once configured, only connected resources
+    /// may be used; [] is deliberately different from nil.
+    public var resourceBindings: [LLMAppResourceBinding]?
+    public init(requirements: [LLMAccessRequirement] = [], rules: [LLMAccessRule] = [],
+                resourceBindings: [LLMAppResourceBinding]? = nil) {
+        version = 1; self.requirements = requirements; self.rules = rules; self.resourceBindings = resourceBindings
     }
     public func validate() throws {
         guard version == 1, requirements.count <= 256, rules.count <= 1024,
@@ -62,6 +70,12 @@ public struct LLMAccessPolicy: Codable, Equatable, Sendable {
               Set(rules.map(\.id)).count == rules.count,
               try JSONEncoder().encode(self).count <= 512 * 1024 else { throw LLMAccessPolicyError.invalidConfiguration }
         let requirementIDs = Set(requirements.map(\.id))
+        if let resourceBindings {
+            guard resourceBindings.count <= 256, Set(resourceBindings.map(\.id)).count == resourceBindings.count else {
+                throw LLMAccessPolicyError.invalidConfiguration
+            }
+            try resourceBindings.forEach { try $0.validate() }
+        }
         for requirement in requirements {
             // An empty product set is deliberately deny-all (useful during safe migration).
             guard Self.validIdentifier(requirement.id), requirement.acceptedProductIDs.count <= 256,
