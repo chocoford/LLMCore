@@ -90,4 +90,26 @@ struct LLMAppResourcePolicyTests {
             try LLMAppResourcePolicy.applying([binding, binding], to: .init(), catalog: catalog)
         }
     }
+
+    @Test("The capability switch disables targets without deleting configurations or basic chat")
+    func modelAccessSwitch() throws {
+        let binding = LLMAppResourceBinding(resourceID: scene.id, name: "Greeting")
+        var policy = LLMAccessPolicy(rules: [
+            .init(resource: scene.resource, effect: .allow),
+            .init(resource: .init(kind: "inference", id: "chat"), effect: .allow)
+        ], resourceBindings: [binding], modelAccessEnabled: true)
+        try policy.validate()
+        #expect(LLMAppResourcePolicy.permits(scene.resource, policy: policy, catalog: catalog))
+        let rules = policy.rules
+        policy.modelAccessEnabled = false
+        #expect(!LLMAppResourcePolicy.permits(scene.resource, policy: policy, catalog: catalog))
+        #expect(policy.evaluate(resource: scene.resource, effectiveProductIDs: [], registeredProductIDs: []).denial == .explicitDeny)
+        #expect(policy.evaluate(resource: .init(kind: "inference", id: "chat", billingSource: .platform), effectiveProductIDs: [], registeredProductIDs: []).allowed)
+        #expect(policy.rules == rules && policy.resourceBindings == [binding])
+        let decoded = try JSONDecoder().decode(LLMAccessPolicy.self, from: JSONEncoder().encode(policy))
+        #expect(decoded == policy)
+        policy.modelAccessEnabled = true
+        #expect(policy.evaluate(resource: scene.resource, effectiveProductIDs: [], registeredProductIDs: []).allowed)
+        #expect(throws: LLMAccessPolicyError.self) { try LLMAccessPolicy(modelAccessEnabled: true).validate() }
+    }
 }

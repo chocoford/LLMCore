@@ -58,6 +58,10 @@ public struct LLMAccessResourceDescriptor: Codable, Equatable, Sendable, Identif
 }
 
 public enum LLMAppResourcePolicy {
+    public static func isManagedResource(_ resource: LLMAccessResource) -> Bool {
+        ["agent", "tool", "image", "image-scene"].contains(resource.kind)
+    }
+
     /// A narrow compatibility suggestion based on real configured gates, not all globally
     /// registered agents or product-name guesses. Empty migration placeholders do not count.
     public static func legacyBindings(in policy: LLMAccessPolicy, catalog: [LLMAccessResourceDescriptor]) -> [LLMAppResourceBinding] {
@@ -88,6 +92,7 @@ public enum LLMAppResourcePolicy {
     /// nil is the old compatibility mode; an explicit empty list connects no resources.
     public static func permits(_ actual: LLMAccessResource, policy: LLMAccessPolicy,
                                catalog: [LLMAccessResourceDescriptor]) -> Bool {
+        guard policy.modelAccessEnabled != false else { return false }
         guard let bindings = policy.resourceBindings else { return true }
         return bindings.contains { binding in
             catalog.first { $0.id == binding.resourceID }?.resource.matches(actual) == true

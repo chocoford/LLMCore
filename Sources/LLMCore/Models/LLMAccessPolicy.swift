@@ -60,9 +60,13 @@ public struct LLMAccessPolicy: Codable, Equatable, Sendable {
     /// nil preserves legacy rollout behavior. Once configured, only connected resources
     /// may be used; [] is deliberately different from nil.
     public var resourceBindings: [LLMAppResourceBinding]?
+    /// Model Access can be enabled before any targets are configured. nil preserves
+    /// the activation behavior of policies written before this capability switch.
+    public var modelAccessEnabled: Bool?
     public init(requirements: [LLMAccessRequirement] = [], rules: [LLMAccessRule] = [],
-                resourceBindings: [LLMAppResourceBinding]? = nil) {
+                resourceBindings: [LLMAppResourceBinding]? = nil, modelAccessEnabled: Bool? = nil) {
         version = 1; self.requirements = requirements; self.rules = rules; self.resourceBindings = resourceBindings
+        self.modelAccessEnabled = modelAccessEnabled
     }
     public func validate() throws {
         guard version == 1, requirements.count <= 256, rules.count <= 1024,
@@ -70,6 +74,9 @@ public struct LLMAccessPolicy: Codable, Equatable, Sendable {
               Set(rules.map(\.id)).count == rules.count,
               try JSONEncoder().encode(self).count <= 512 * 1024 else { throw LLMAccessPolicyError.invalidConfiguration }
         let requirementIDs = Set(requirements.map(\.id))
+        guard modelAccessEnabled == nil || resourceBindings != nil else {
+            throw LLMAccessPolicyError.invalidConfiguration
+        }
         if let resourceBindings {
             guard resourceBindings.count <= 256, Set(resourceBindings.map(\.id)).count == resourceBindings.count else {
                 throw LLMAccessPolicyError.invalidConfiguration
@@ -106,6 +113,9 @@ public struct LLMAccessPolicy: Codable, Equatable, Sendable {
         guard (try? validate()) != nil, (try? resource.validate()) != nil,
               additionalRequirementIDs.count <= 64,
               additionalRequirementIDs.allSatisfy(Self.validIdentifier) else { return .denied(.configurationMissing) }
+        if modelAccessEnabled == false, LLMAppResourcePolicy.isManagedResource(resource) {
+            return .denied(.explicitDeny)
+        }
         let matching = rules.filter { $0.matches(resource) }
         guard !matching.isEmpty else { return .denied(.ruleMissing) }
         if matching.contains(where: { $0.effect == .deny }) { return .denied(.explicitDeny) }
