@@ -1,6 +1,6 @@
 import Foundation
 
-/// Portable connection settings only. API keys must never be added to this Codable type.
+/// Portable connection/request settings. API keys must never be added to this Codable type.
 public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
     public enum APIFormat: String, Codable, Sendable { case chatCompletions = "chat_completions" }
     public enum TokenLimitParameter: String, Codable, Sendable {
@@ -127,15 +127,17 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
     public var options: CompatibilityOptions
     /// nil disables discovery without affecting arbitrary model IDs or inference.
     public var modelDiscovery: ModelDiscovery?
+    /// Explicit request opt-in only. nil preserves the upstream's existing defaults.
+    public var webSearch: LLMBYOKWebSearch?
 
     private enum CodingKeys: String, CodingKey {
-        case version, baseURL, apiFormat, defaultModel, modelMapping, options, modelDiscovery
+        case version, baseURL, apiFormat, defaultModel, modelMapping, options, modelDiscovery, webSearch
     }
 
     public init(
         baseURL: URL, apiFormat: APIFormat = .chatCompletions, defaultModel: String? = nil,
         modelMapping: ModelMapping = .init(), options: CompatibilityOptions = .init(),
-        modelDiscovery: ModelDiscovery? = .init()
+        modelDiscovery: ModelDiscovery? = .init(), webSearch: LLMBYOKWebSearch? = nil
     ) {
         self.version = 1
         self.baseURL = baseURL
@@ -144,6 +146,7 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
         self.modelMapping = modelMapping
         self.options = options
         self.modelDiscovery = modelDiscovery
+        self.webSearch = webSearch
     }
 
     public init(from decoder: any Decoder) throws {
@@ -157,6 +160,7 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
         // Missing = backwards-compatible GET models; explicit null = disabled.
         modelDiscovery = values.contains(.modelDiscovery)
             ? try values.decodeIfPresent(ModelDiscovery.self, forKey: .modelDiscovery) : .init()
+        webSearch = try values.decodeIfPresent(LLMBYOKWebSearch.self, forKey: .webSearch)
     }
 
     // Keep an explicit null when disabled, rather than losing it through encodeIfPresent.
@@ -169,6 +173,7 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
         try values.encode(modelMapping, forKey: .modelMapping)
         try values.encode(options, forKey: .options)
         try values.encode(modelDiscovery, forKey: .modelDiscovery)
+        try values.encodeIfPresent(webSearch, forKey: .webSearch)
     }
 
     public var modelsURL: URL? { modelDiscovery.map { normalizedURL(baseURL.appendingPathComponent($0.path)) } }
@@ -183,7 +188,14 @@ public struct LLMBYOKConfiguration: Codable, Equatable, Sendable {
         components.host = components.host?.lowercased()
         return components.url ?? url
     }
-    public var preset: LLMBYOKPreset? { LLMBYOKPreset.allCases.first { $0.configuration == self } }
+    public var preset: LLMBYOKPreset? { LLMBYOKPreset.allCases.first { $0.configuration.hasSameConnection(as: self) } }
+
+    /// Search is a request option, not a new key/transport connection or history binding.
+    public func hasSameConnection(as other: Self) -> Bool {
+        var left = self, right = other
+        left.webSearch = nil; right.webSearch = nil
+        return left == right
+    }
 
     /// Syntactic checks are shared with the App. DNS/IP checks are a backend responsibility.
     public func validate() throws {

@@ -85,6 +85,7 @@ public enum LLMChatCompletionsCodec {
         if options.sendStoreFalse { payload["store"] = false }
         if let limit = options.outputTokenLimit { payload[options.tokenLimitParameter.rawValue] = limit }
         if options.openRouterExtensions { payload["usage"] = ["include": true] }
+        configuration.webSearch?.apply(to: &payload)
         return try JSONSerialization.data(withJSONObject: payload)
     }
 
