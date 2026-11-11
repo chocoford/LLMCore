@@ -403,6 +403,7 @@ public final class AgentExecutor: Sendable {
         // Usage / id 跟 chunk 走 (最新一次)
         if let usage = chunk.usage { existing.usage = usage }
         for record in chunk.inferenceUsage ?? [] { existing.recordInferenceUsage(record) }
+        existing.mergeCitations(chunk.citations ?? [])
         if !chunk.id.isEmpty { existing.id = chunk.id }
 
         return existing

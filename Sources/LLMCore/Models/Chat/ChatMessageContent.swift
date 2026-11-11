@@ -19,6 +19,8 @@ public struct ChatMessageContent: ContentModel, Identifiable {
     /// Actual model-request usage, separate from the legacy platform-credit field above.
     /// Optional for backward-compatible decoding of old clients and saved conversations.
     public var inferenceUsage: [LLMInferenceUsage]?
+    /// Normalized upstream source links; optional for old history/wire compatibility.
+    public var citations: [LLMSourceCitation]?
 
     /// LLM 决定调用的工具 (assistant 角色消息携带)。
     /// 一个 assistant 消息可以同时有 content (思考) 和 toolCalls (动作)。
@@ -56,7 +58,8 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         toolCallId: String? = nil,
         isCompactedOut: Bool = false,
         isCompactSummary: Bool = false,
-        inferenceUsage: [LLMInferenceUsage]? = nil
+        inferenceUsage: [LLMInferenceUsage]? = nil,
+        citations: [LLMSourceCitation]? = nil
     ) {
         self.id = id
         self.role = role
@@ -64,6 +67,7 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.files = files
         self.usage = usage
         self.inferenceUsage = inferenceUsage
+        self.citations = citations
         self.toolCalls = toolCalls
         self.toolCallId = toolCallId
         self.isCompactedOut = isCompactedOut
@@ -78,6 +82,7 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.files = try container.decodeIfPresent([ChatMessageContent.File].self, forKey: .files)
         self.usage = try container.decodeIfPresent(CreditsResult.self, forKey: .usage)
         self.inferenceUsage = try container.decodeIfPresent([LLMInferenceUsage].self, forKey: .inferenceUsage)
+        self.citations = try container.decodeIfPresent([LLMSourceCitation].self, forKey: .citations)
         self.toolCalls = try container.decodeIfPresent([ToolCall].self, forKey: .toolCalls)
         self.toolCallId = try container.decodeIfPresent(String.self, forKey: .toolCallId)
         self.isCompactedOut = try container.decodeIfPresent(Bool.self, forKey: .isCompactedOut) ?? false

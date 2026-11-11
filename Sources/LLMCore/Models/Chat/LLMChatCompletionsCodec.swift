@@ -102,9 +102,13 @@ public enum LLMChatCompletionsCodec {
             throw LLMChatCompletionsError.invalidResponse
         }
         let usage = envelope.usage?.value
+        guard let metadata = try? JSONDecoder().decode(LLMChatCompletionsMetadata.self, from: data) else {
+            throw LLMChatCompletionsError.invalidResponse
+        }
         return .init(data: .init(id: envelope.id, role: .assistant, content: message.content ?? message.refusal,
             toolCalls: calls, inferenceUsage: [.init(responseID: envelope.id, modelID: envelope.model,
-                tokens: usage, isComplete: true)]), usage: usage, credits: nil)
+                tokens: usage, isComplete: true, providerToolUsage: metadata.providerToolUsage)],
+            citations: metadata.citations.isEmpty ? nil : metadata.citations), usage: usage, credits: nil)
     }
 
     static func imageParts(_ files: [ChatMessageContent.File]) throws -> [[String: Any]] {
@@ -167,6 +171,7 @@ public enum LLMChatCompletionsCodec {
               let delta = choices[0]["delta"] as? [String: Any] else { return false }
         return delta.allSatisfy { key, value in
             if key == "role" { return value is NSNull || value as? String == "assistant" }
+            if key == "annotations", !(value is NSNull) { return LLMChatCompletionsMetadata.isCitationAnnotations(value) }
             if value is NSNull { return true }
             if let text = value as? String { return text.isEmpty }
             if let array = value as? [Any] { return array.isEmpty }
@@ -230,6 +235,7 @@ public struct LLMChatCompletionsAccumulator {
     private var receivedBytes = 0
     public private(set) var usage: Usage?
     public private(set) var modelID: String?
+    public private(set) var providerToolUsage: [String: Int]?
     public var currentMessage: ChatMessageContent { message }
 
     public init() {}
@@ -238,14 +244,18 @@ public struct LLMChatCompletionsAccumulator {
         receivedBytes += data.count
         guard receivedBytes <= 16 * 1024 * 1024 else { throw LLMChatCompletionsError.invalidResponse }
         let envelope = try LLMChatCompletionsCodec.decodeEnvelope(data)
+        guard let metadata = try? JSONDecoder().decode(LLMChatCompletionsMetadata.self, from: data) else {
+            throw LLMChatCompletionsError.invalidResponse
+        }
         if let responseID, responseID != envelope.id { throw LLMChatCompletionsError.invalidResponse }
         responseID = envelope.id
         if let model = envelope.model { modelID = model }
         message.id = envelope.id
         guard !envelope.choices.isEmpty else {
-            guard let value = envelope.usage else { throw LLMChatCompletionsError.invalidResponse }
-            usage = value.value
-            return nil
+            guard envelope.usage != nil || !metadata.citations.isEmpty else { throw LLMChatCompletionsError.invalidResponse }
+            if let value = envelope.usage { usage = value.value }
+            apply(metadata)
+            return metadata.citations.isEmpty ? nil : message
         }
         guard envelope.choices.count == 1, let choice = envelope.choices.first, choice.index == 0,
               let delta = choice.delta else { throw LLMChatCompletionsError.invalidResponse }
@@ -254,14 +264,18 @@ public struct LLMChatCompletionsAccumulator {
         if let finishReason {
             // Accounting does not append text, repair tool arguments, emit another
             // assistant snapshot, or substitute for the transport's DONE marker.
-            guard let value = envelope.usage, choice.finish_reason == finishReason,
+            let hasSources = !metadata.citations.isEmpty
+            guard envelope.usage != nil || hasSources,
+                  choice.finish_reason == finishReason || (hasSources && choice.finish_reason == nil),
                   choice.message == nil, LLMChatCompletionsCodec.hasContentFreeDelta(data) else {
                 throw LLMChatCompletionsError.invalidResponse
             }
-            usage = value.value
-            return nil
+            if let value = envelope.usage { usage = value.value }
+            apply(metadata)
+            return hasSources ? message : nil
         }
         if let value = envelope.usage { usage = value.value }
+        apply(metadata)
         if let text = delta.content ?? delta.refusal { message.content = (message.content ?? "") + text }
         for part in delta.tool_calls ?? [] {
             guard let index = part.index, (0..<128).contains(index), part.type == nil || part.type == "function" else { throw LLMChatCompletionsError.invalidResponse }
@@ -279,6 +293,13 @@ public struct LLMChatCompletionsAccumulator {
         if !calls.isEmpty { message.toolCalls = calls.keys.sorted().compactMap { calls[$0] } }
         if let reason = choice.finish_reason { try LLMChatCompletionsCodec.validateFinish(reason); finishReason = reason }
         return message
+    }
+
+    private mutating func apply(_ metadata: LLMChatCompletionsMetadata) {
+        message.mergeCitations(metadata.citations)
+        if let counters = metadata.providerToolUsage {
+            providerToolUsage = (providerToolUsage ?? [:]).merging(counters) { _, latest in latest }
+        }
     }
 
     public func validateEnd() throws {

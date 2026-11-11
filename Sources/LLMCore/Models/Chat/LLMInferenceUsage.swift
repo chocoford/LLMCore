@@ -15,14 +15,17 @@ public struct LLMInferenceUsage: ContentModel, Identifiable {
     /// Whether the response completed successfully, including transport validation.
     /// Reported usage can survive a failed/incomplete response.
     public var isComplete: Bool
+    /// Upstream tool meters (e.g. web_search_requests). Not tokens and not dollar estimates.
+    public var providerToolUsage: [String: Int]?
 
     public init(id: String = UUID().uuidString, responseID: String? = nil,
                 generationID: String? = nil, modelID: String? = nil,
                 billingSource: LLMAccessBillingSource? = nil, purpose: String = "chat",
-                tokens: Usage? = nil, isComplete: Bool = false) {
+                tokens: Usage? = nil, isComplete: Bool = false, providerToolUsage: [String: Int]? = nil) {
         self.id = id; self.responseID = responseID; self.generationID = generationID
         self.modelID = modelID; self.billingSource = billingSource; self.purpose = purpose
         self.tokens = tokens; self.isComplete = isComplete
+        self.providerToolUsage = providerToolUsage
     }
 }
 
@@ -49,6 +52,17 @@ public struct LLMUsageSummary: Equatable, Sendable {
     public var unreportedRequestCount: Int { requests.filter { $0.tokens == nil }.count }
     public var incompleteRequestCount: Int { requests.filter { !$0.isComplete }.count }
     public var isComplete: Bool { !requests.isEmpty && unreportedRequestCount == 0 && incompleteRequestCount == 0 }
+    /// Sums deduplicated request counters. nil means no upstream tool meters were reported.
+    public var providerToolUsage: [String: Int]? {
+        var totals: [String: Int] = [:]
+        for request in requests {
+            for (key, count) in request.providerToolUsage ?? [:] where count >= 0 {
+                let (sum, overflow) = totals[key, default: 0].addingReportingOverflow(count)
+                totals[key] = overflow ? Int.max : sum
+            }
+        }
+        return totals.isEmpty ? nil : totals
+    }
 
     /// A partial sum when some requests are unreported; consult isComplete alongside it.
     public var tokens: Usage? {
