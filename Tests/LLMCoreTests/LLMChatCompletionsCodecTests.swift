@@ -74,6 +74,99 @@ struct LLMChatCompletionsCodecTests {
         #expect(message?.usage == nil)
     }
 
+    @Test("OpenRouter usage tails repeat the finish reason without emitting another message", arguments: ["stop", "tool_calls"])
+    func openRouterUsageTail(reason: String) throws {
+        let delta: [String: Any] = reason == "stop"
+            ? ["content": "Hi"]
+            : ["tool_calls": [["index": 0, "id": "a", "type": "function", "function": ["name": "draw", "arguments": "{}"]]]]
+        let terminal = try JSONSerialization.data(withJSONObject: [
+            "id": "r", "choices": [["index": 0, "delta": delta, "finish_reason": reason]]
+        ])
+        for emptyDelta in [
+            #"{}"#,
+            #"{"role":"assistant","content":""}"#,
+            #"{"role":null,"content":null}"#,
+            #"{"content":"","refusal":null,"tool_calls":[],"reasoning":null,"reasoning_details":[]}"#
+        ] {
+            let tail = #"{"id":"r","choices":[{"index":0,"delta":\#(emptyDelta),"finish_reason":"\#(reason)","native_finish_reason":"\#(reason)"}],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}"#
+            let wire = "data: \(String(decoding: terminal, as: UTF8.self))\n\ndata: \(tail)\n\ndata: [DONE]\n\n"
+            var frames = LLMChatCompletionsFrames()
+            var accumulator = LLMChatCompletionsAccumulator()
+            var messages: [ChatMessageContent] = []
+            for byte in wire.utf8 {
+                if case .data(let data) = try frames.append(byte), let message = try accumulator.append(data) {
+                    messages.append(message)
+                }
+            }
+            try frames.validateEnd()
+            try accumulator.validateEnd()
+            #expect(messages.count == 1)
+            #expect(messages.first?.content == (reason == "stop" ? "Hi" : nil))
+            #expect(messages.first?.toolCalls?.first?.arguments == (reason == "tool_calls" ? "{}" : nil))
+            #expect(accumulator.usage?.promptTokens == 1)
+            #expect(accumulator.usage?.completionTokens == 2)
+            #expect(accumulator.usage?.totalTokens == 3)
+        }
+    }
+
+    @Test("After finishing, only content-free accounting for the same response is accepted", arguments: [
+        #"{"id":"other","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":1,"delta":{},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{},"finish_reason":null}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{"role":"user"},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{"content":"extra"},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{"refusal":"extra"},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"}"}}]},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{"images":[{}]},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{"audio":{}},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{"reasoning":"extra"},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{},"message":{"content":"extra"},"finish_reason":"stop"}]}"#,
+        #"{"id":"r","choices":[{"index":0,"delta":{},"finish_reason":"stop"},{"index":1,"delta":{},"finish_reason":"stop"}]}"#
+    ])
+    func invalidUsageTail(payload: String) throws {
+        var accumulator = LLMChatCompletionsAccumulator()
+        _ = try accumulator.append(Data(#"{"id":"r","choices":[{"index":0,"delta":{"content":"Hi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}"#.utf8))
+        var tail = try #require(JSONSerialization.jsonObject(with: Data(payload.utf8)) as? [String: Any])
+        // Check both a duplicate terminal event without usage and a malformed accounting tail.
+        #expect(throws: (any Error).self) { _ = try accumulator.append(Data(payload.utf8)) }
+        tail["usage"] = ["prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30]
+        let data = try JSONSerialization.data(withJSONObject: tail)
+        #expect(throws: (any Error).self) { _ = try accumulator.append(data) }
+        #expect(accumulator.usage?.totalTokens == 3)
+        try accumulator.validateEnd()
+    }
+
+    @Test("A usage tail does not replace DONE, a finish reason, or complete tool arguments")
+    func usageTailPreservesCompletionChecks() throws {
+        let tail = #"{"id":"r","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}"#
+        let wire = "data: {\"id\":\"r\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":\"stop\"}]}\n\ndata: \(tail)\n\n"
+        var frames = LLMChatCompletionsFrames()
+        var accumulator = LLMChatCompletionsAccumulator()
+        for byte in wire.utf8 {
+            if case .data(let data) = try frames.append(byte) { _ = try accumulator.append(data) }
+        }
+        try accumulator.validateEnd()
+        #expect(throws: (any Error).self) { try frames.validateEnd() }
+        #expect(throws: (any Error).self) {
+            _ = try accumulator.append(Data(#"{"id":"r","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}"#.utf8))
+        }
+
+        var unfinished = LLMChatCompletionsAccumulator()
+        _ = try unfinished.append(Data(#"{"id":"r","choices":[{"index":0,"delta":{"content":"Hi"},"finish_reason":null}]}"#.utf8))
+        _ = try unfinished.append(Data(#"{"id":"r","choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}"#.utf8))
+        #expect(throws: (any Error).self) { try unfinished.validateEnd() }
+
+        var truncated = LLMChatCompletionsAccumulator()
+        _ = try truncated.append(Data(#"{"id":"r","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"a","type":"function","function":{"name":"draw","arguments":"{\"ops\":"}}]},"finish_reason":"tool_calls"}]}"#.utf8))
+        let toolTail = tail.replacingOccurrences(of: #""finish_reason":"stop""#, with: #""finish_reason":"tool_calls""#)
+        #expect(try truncated.append(Data(toolTail.utf8)) == nil)
+        #expect(throws: (any Error).self) { try truncated.validateEnd() }
+        let repair = #"{"id":"r","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"[]}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}"#
+        #expect(throws: (any Error).self) { _ = try truncated.append(Data(repair.utf8)) }
+        #expect(throws: (any Error).self) { try truncated.validateEnd() }
+    }
+
     @Test("Truncated or invalid tool calls cannot reach execution", arguments: ["length", "content_filter", "stop", "tool_calls"])
     func badToolCalls(reason: String) {
         #expect(throws: (any Error).self) {

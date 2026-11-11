@@ -155,6 +155,23 @@ public enum LLMChatCompletionsCodec {
         return value
     }
 
+    /// OpenRouter's final usage chunk repeats the terminal choice with an empty
+    /// delta. Inspect raw keys too, so unknown output (e.g. reasoning) cannot be
+    /// silently discarded and mistaken for accounting after generation finished.
+    static func hasContentFreeDelta(_ data: Data) -> Bool {
+        guard let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let choices = object["choices"] as? [[String: Any]], choices.count == 1,
+              let delta = choices[0]["delta"] as? [String: Any] else { return false }
+        return delta.allSatisfy { key, value in
+            if key == "role" { return value is NSNull || value as? String == "assistant" }
+            if value is NSNull { return true }
+            if let text = value as? String { return text.isEmpty }
+            if let array = value as? [Any] { return array.isEmpty }
+            if let object = value as? [String: Any] { return object.isEmpty }
+            return false
+        }
+    }
+
     struct Envelope: Decodable {
         let id: String
         let choices: [Choice]
@@ -218,15 +235,26 @@ public struct LLMChatCompletionsAccumulator {
         if let responseID, responseID != envelope.id { throw LLMChatCompletionsError.invalidResponse }
         responseID = envelope.id
         message.id = envelope.id
-        if let value = envelope.usage { usage = value.value }
         guard !envelope.choices.isEmpty else {
-            guard envelope.usage != nil else { throw LLMChatCompletionsError.invalidResponse }
+            guard let value = envelope.usage else { throw LLMChatCompletionsError.invalidResponse }
+            usage = value.value
             return nil
         }
         guard envelope.choices.count == 1, let choice = envelope.choices.first, choice.index == 0,
-              let delta = choice.delta, finishReason == nil else { throw LLMChatCompletionsError.invalidResponse }
+              let delta = choice.delta else { throw LLMChatCompletionsError.invalidResponse }
         try delta.validateCapabilities()
         guard delta.role == nil || delta.role == "assistant" else { throw LLMChatCompletionsError.invalidResponse }
+        if let finishReason {
+            // Accounting does not append text, repair tool arguments, emit another
+            // assistant snapshot, or substitute for the transport's DONE marker.
+            guard let value = envelope.usage, choice.finish_reason == finishReason,
+                  choice.message == nil, LLMChatCompletionsCodec.hasContentFreeDelta(data) else {
+                throw LLMChatCompletionsError.invalidResponse
+            }
+            usage = value.value
+            return nil
+        }
+        if let value = envelope.usage { usage = value.value }
         if let text = delta.content ?? delta.refusal { message.content = (message.content ?? "") + text }
         for part in delta.tool_calls ?? [] {
             guard let index = part.index, (0..<128).contains(index), part.type == nil || part.type == "function" else { throw LLMChatCompletionsError.invalidResponse }
