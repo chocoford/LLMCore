@@ -79,7 +79,8 @@ public final class AgentExecutor: Sendable {
         metadata: Metadata = EmptyMetadata(),
         invocationContext: (any ChatInvocationContext)? = nil,
         toolResultTransformer: (@Sendable (ChatMessageContent) async throws -> ChatMessageContent)? = nil,
-        toolApprovalHandler: ToolApprovalHandler? = nil
+        toolApprovalHandler: ToolApprovalHandler? = nil,
+        generationID: String = UUID().uuidString
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         let tools = await toolRegistry.get(agentConfig.tools)
         let toolSchemas = try tools.map { try $0.schema }
@@ -104,7 +105,8 @@ public final class AgentExecutor: Sendable {
                 stream: canStream,
                 metadata: metadata,
                 agentID: agentConfig.agentID,
-                tools: nil
+                tools: nil,
+                generationID: generationID
             )
         }
 
@@ -151,7 +153,8 @@ public final class AgentExecutor: Sendable {
                             metadata: requestMetadata,
                             agentID: agentConfig.agentID,
                             toolSchemas: toolSchemas,
-                            continuation: continuation
+                            continuation: continuation,
+                            generationID: generationID
                         )
 
                         let rawToolCalls = final.toolCalls ?? []
@@ -177,12 +180,8 @@ public final class AgentExecutor: Sendable {
                         }
 
                         // Has tool calls → record the assistant decision + execute each tool.
-                        let assistantDecision = ChatMessageContent(
-                            id: final.id,
-                            role: .assistant,
-                            content: final.content,
-                            toolCalls: toolCalls
-                        )
+                        var assistantDecision = final
+                        assistantDecision.toolCalls = toolCalls
                         if !invalidArgumentsByToolCallID.isEmpty {
                             continuation.yield(.content(assistantDecision))
                         }
@@ -309,9 +308,11 @@ public final class AgentExecutor: Sendable {
         metadata: Metadata?,
         agentID: String?,
         toolSchemas: [ToolSchema],
-        continuation: AsyncThrowingStream<ChatMessage, Error>.Continuation
+        continuation: AsyncThrowingStream<ChatMessage, Error>.Continuation,
+        generationID: String
     ) async throws -> ChatMessageContent {
         let toolsArg: [ToolSchema]? = toolSchemas.isEmpty ? nil : toolSchemas
+        let requestID = UUID().uuidString
 
         if stream {
             let responseStream = try await llmProvider.streamChat(
@@ -327,7 +328,8 @@ public final class AgentExecutor: Sendable {
             for try await event in responseStream {
                 switch event {
                 case .message(let chunk):
-                    let merged = Self.merge(into: accumulated, chunk: chunk)
+                    let merged = Self.attributing(Self.merge(into: accumulated, chunk: chunk),
+                        requestID: requestID, generationID: generationID, model: model)
                     accumulated = merged
                     continuation.yield(.content(merged))
 
@@ -343,7 +345,9 @@ public final class AgentExecutor: Sendable {
             guard let final = accumulated else {
                 throw AgentError.toolExecutionFailed("No response from LLM")
             }
-            return final
+            let completed = Self.attributing(final, requestID: requestID, generationID: generationID, model: model, completed: true)
+            if completed != final { continuation.yield(.content(completed)) }
+            return completed
         } else {
             let result = try await llmProvider.chat(
                 model: model,
@@ -355,8 +359,10 @@ public final class AgentExecutor: Sendable {
             guard let message = result.data else {
                 throw AgentError.toolExecutionFailed(result.error?.message ?? "No response from LLM")
             }
-            continuation.yield(.content(message))
-            return message
+            let completed = Self.attributing(message, requestID: requestID, generationID: generationID,
+                model: model, tokens: result.usage, completed: true)
+            continuation.yield(.content(completed))
+            return completed
         }
     }
 
@@ -396,9 +402,32 @@ public final class AgentExecutor: Sendable {
 
         // Usage / id 跟 chunk 走 (最新一次)
         if let usage = chunk.usage { existing.usage = usage }
+        for record in chunk.inferenceUsage ?? [] { existing.recordInferenceUsage(record) }
         if !chunk.id.isEmpty { existing.id = chunk.id }
 
         return existing
+    }
+
+    /// Fallback for older/custom providers that return usage only on APIResponse.
+    /// The generation groups tool rounds; request IDs stay distinct across retries.
+    private static func attributing(_ message: ChatMessageContent, requestID: String,
+        generationID: String, model: SupportedModel, tokens: Usage? = nil, completed: Bool = false
+    ) -> ChatMessageContent {
+        var message = message
+        var records = message.inferenceUsage ?? []
+        if records.isEmpty {
+            records = [.init(id: requestID, responseID: message.id, modelID: model.rawValue, tokens: tokens)]
+        } else if records.contains(where: { $0.id != requestID }) {
+            // A legacy provider may start emitting its own accounting only in the last chunk.
+            records.removeAll { $0.id == requestID }
+        }
+        for index in records.indices where records[index].purpose == "chat" {
+            records[index].generationID = generationID
+            if records[index].tokens == nil { records[index].tokens = tokens }
+            if completed { records[index].isComplete = true }
+        }
+        message.inferenceUsage = records
+        return message
     }
 
     // MARK: - Direct chat (no tools)
@@ -410,12 +439,14 @@ public final class AgentExecutor: Sendable {
         stream: Bool,
         metadata: Metadata?,
         agentID: String?,
-        tools: [ToolSchema]?
+        tools: [ToolSchema]?,
+        generationID: String
     ) async throws -> AsyncThrowingStream<ChatMessage, Error> {
         if stream {
             return AsyncThrowingStream { continuation in
                 let producer = Task {
                     do {
+                        let requestID = UUID().uuidString
                         let responseStream = try await self.llmProvider.streamChat(
                             model: model,
                             messages: context,
@@ -427,7 +458,8 @@ public final class AgentExecutor: Sendable {
                         for try await event in responseStream {
                             switch event {
                             case .message(let chunk):
-                                let merged = Self.merge(into: accumulated, chunk: chunk)
+                                let merged = Self.attributing(Self.merge(into: accumulated, chunk: chunk),
+                                    requestID: requestID, generationID: generationID, model: model)
                                 accumulated = merged
                                 continuation.yield(.content(merged))
                             case .settlement(let credits):
@@ -437,6 +469,11 @@ public final class AgentExecutor: Sendable {
                                     continuation.yield(.content(msg))
                                 }
                             }
+                        }
+                        if let accumulated {
+                            let completed = Self.attributing(accumulated, requestID: requestID,
+                                generationID: generationID, model: model, completed: true)
+                            if completed != accumulated { continuation.yield(.content(completed)) }
                         }
                         continuation.finish()
                     } catch {
@@ -461,7 +498,8 @@ public final class AgentExecutor: Sendable {
                         guard let message = result.data else {
                             throw AgentError.toolExecutionFailed(result.error?.message ?? "No response from LLM")
                         }
-                        continuation.yield(.content(message))
+                        continuation.yield(.content(Self.attributing(message, requestID: UUID().uuidString,
+                            generationID: generationID, model: model, tokens: result.usage, completed: true)))
                         continuation.finish()
                     } catch {
                         continuation.finish(throwing: error)

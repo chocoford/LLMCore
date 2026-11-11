@@ -101,7 +101,10 @@ public enum LLMChatCompletionsCodec {
         guard message.content != nil || message.refusal != nil || calls?.isEmpty == false else {
             throw LLMChatCompletionsError.invalidResponse
         }
-        return .init(data: .init(id: envelope.id, role: .assistant, content: message.content ?? message.refusal, toolCalls: calls), usage: envelope.usage?.value, credits: nil)
+        let usage = envelope.usage?.value
+        return .init(data: .init(id: envelope.id, role: .assistant, content: message.content ?? message.refusal,
+            toolCalls: calls, inferenceUsage: [.init(responseID: envelope.id, modelID: envelope.model,
+                tokens: usage, isComplete: true)]), usage: usage, credits: nil)
     }
 
     static func imageParts(_ files: [ChatMessageContent.File]) throws -> [[String: Any]] {
@@ -174,6 +177,7 @@ public enum LLMChatCompletionsCodec {
 
     struct Envelope: Decodable {
         let id: String
+        let model: String?
         let choices: [Choice]
         let usage: TokenUsage?
     }
@@ -225,6 +229,8 @@ public struct LLMChatCompletionsAccumulator {
     private var responseID: String?
     private var receivedBytes = 0
     public private(set) var usage: Usage?
+    public private(set) var modelID: String?
+    public var currentMessage: ChatMessageContent { message }
 
     public init() {}
 
@@ -234,6 +240,7 @@ public struct LLMChatCompletionsAccumulator {
         let envelope = try LLMChatCompletionsCodec.decodeEnvelope(data)
         if let responseID, responseID != envelope.id { throw LLMChatCompletionsError.invalidResponse }
         responseID = envelope.id
+        if let model = envelope.model { modelID = model }
         message.id = envelope.id
         guard !envelope.choices.isEmpty else {
             guard let value = envelope.usage else { throw LLMChatCompletionsError.invalidResponse }

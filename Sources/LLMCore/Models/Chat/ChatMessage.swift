@@ -101,6 +101,20 @@ public enum ChatMessage: ContentModel, Identifiable {
         }
     }
 
+    public var inferenceUsage: [LLMInferenceUsage]? {
+        get {
+            guard case .content(let content) = self else { return nil }
+            return content.inferenceUsage
+        }
+        set {
+            guard case .content(var content) = self else { return }
+            content.inferenceUsage = newValue
+            self = .content(content)
+        }
+    }
+
+    public var usageSummary: LLMUsageSummary { .init(inferenceUsage ?? []) }
+
     public init(from decoder: any Decoder) throws {
         // ChatMessage 持久化时只会 encode 出 ChatMessageContent 形态 (loading/error 不存),
         // 所以 decode 一律走 .content 路径。

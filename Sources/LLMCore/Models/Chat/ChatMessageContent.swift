@@ -16,6 +16,9 @@ public struct ChatMessageContent: ContentModel, Identifiable {
     public var files: [File]?
 
     public var usage: CreditsResult?
+    /// Actual model-request usage, separate from the legacy platform-credit field above.
+    /// Optional for backward-compatible decoding of old clients and saved conversations.
+    public var inferenceUsage: [LLMInferenceUsage]?
 
     /// LLM 决定调用的工具 (assistant 角色消息携带)。
     /// 一个 assistant 消息可以同时有 content (思考) 和 toolCalls (动作)。
@@ -52,13 +55,15 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         toolCalls: [ToolCall]? = nil,
         toolCallId: String? = nil,
         isCompactedOut: Bool = false,
-        isCompactSummary: Bool = false
+        isCompactSummary: Bool = false,
+        inferenceUsage: [LLMInferenceUsage]? = nil
     ) {
         self.id = id
         self.role = role
         self.content = content
         self.files = files
         self.usage = usage
+        self.inferenceUsage = inferenceUsage
         self.toolCalls = toolCalls
         self.toolCallId = toolCallId
         self.isCompactedOut = isCompactedOut
@@ -72,6 +77,7 @@ public struct ChatMessageContent: ContentModel, Identifiable {
         self.content = try container.decodeIfPresent(String.self, forKey: .content)
         self.files = try container.decodeIfPresent([ChatMessageContent.File].self, forKey: .files)
         self.usage = try container.decodeIfPresent(CreditsResult.self, forKey: .usage)
+        self.inferenceUsage = try container.decodeIfPresent([LLMInferenceUsage].self, forKey: .inferenceUsage)
         self.toolCalls = try container.decodeIfPresent([ToolCall].self, forKey: .toolCalls)
         self.toolCallId = try container.decodeIfPresent(String.self, forKey: .toolCallId)
         self.isCompactedOut = try container.decodeIfPresent(Bool.self, forKey: .isCompactedOut) ?? false
